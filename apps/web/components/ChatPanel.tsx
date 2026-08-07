@@ -9,6 +9,13 @@ interface Props {
   onEdit: () => void;
 }
 
+interface RuntimeStatus {
+  provider: string;
+  model: string;
+  configured: boolean;
+  mode: string;
+}
+
 export function ChatPanel({ answers, onEdit }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     { role: "assistant", content: vane.greeting },
@@ -17,7 +24,21 @@ export function ChatPanel({ answers, onEdit }: Props) {
   const [loading, setLoading] = useState(false);
   const [validation, setValidation] = useState<OutputValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Fetch runtime/provider status once on mount (safe diagnostics, no secrets).
+  useEffect(() => {
+    const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    fetch(`${api}/v1/runtime/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d) setRuntime(d);
+      })
+      .catch(() => {
+        /* diagnostics are best-effort; ignore failures */
+      });
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -37,6 +58,17 @@ export function ChatPanel({ answers, onEdit }: Props) {
       const data = await sendChat(content);
       setMessages((m) => [...m, { role: "assistant", content: data.response.content }]);
       setValidation(data.response.validation);
+      // Update runtime display from the actual response (provider/model).
+      setRuntime((prev) =>
+        prev
+          ? { ...prev, provider: data.response.provider, model: data.response.model }
+          : {
+              provider: data.response.provider,
+              model: data.response.model,
+              configured: false,
+              mode: data.response.provider === "mock" ? "mock" : "real",
+            },
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error desconocido";
       setError(msg);
@@ -51,6 +83,10 @@ export function ChatPanel({ answers, onEdit }: Props) {
       setLoading(false);
     }
   };
+
+  const statusLabel = runtime
+    ? `provider: ${runtime.provider} · ${runtime.mode}`
+    : "provider: ...";
 
   return (
     <section className="section" id="chat">
@@ -86,7 +122,7 @@ export function ChatPanel({ answers, onEdit }: Props) {
               </div>
               <div className="chat-header-info">
                 <h4>{vane.name}</h4>
-                <span className="status">Prototipo · provider: mock</span>
+                <span className="status">{statusLabel}</span>
               </div>
             </div>
 
@@ -129,7 +165,11 @@ export function ChatPanel({ answers, onEdit }: Props) {
               </button>
             </div>
 
-            {error && <p className="chat-dev" style={{ color: "var(--magenta)" }}>Error: {error}</p>}
+            {error && (
+              <p className="chat-dev" style={{ color: "var(--magenta)" }}>
+                Error: {error}
+              </p>
+            )}
             {validation && (
               <p className="chat-dev">
                 Desarrollo: validación de salida {validation.is_valid ? "OK" : "rechazada"}

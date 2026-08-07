@@ -2,10 +2,15 @@
  * Typed client for the canonical FastAPI backend.
  * Contract: POST /v1/chat → ChatResponse { response: { content, validation, ... } }
  *
- * Per Issue #1: the frontend is a client only. Chat must go through the
+ * Per Issue #3: the frontend is a client only. Chat must go through the
  * existing FastAPI backend (ModelRouter / Provider abstraction /
- * OutputValidator), not a second Next.js API route.
+ * OutputValidator), not a second Next.js API route. The conversation_id
+ * is a per-browser-session identifier (lib/session.ts), NOT a shared
+ * constant. The client never sends a system prompt — the server owns
+ * the canonical Vane personality.
  */
+
+import { getConversationId } from "@/lib/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -52,7 +57,7 @@ export async function sendChat(
     body: JSON.stringify({
       message,
       character_id: opts?.character_id ?? "vane",
-      conversation_id: "web-session",
+      conversation_id: getConversationId(),
     }),
     signal: opts?.signal,
   });

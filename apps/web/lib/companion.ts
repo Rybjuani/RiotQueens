@@ -22,12 +22,10 @@ export interface Companion {
   portrait: string;
   greeting: string;
   quickPrompts: string[];
-  /**
-   * Transparent system prompt. Does NOT instruct the character to hide her
-   * AI nature. Designed so outputs pass the backend OutputValidator
-   * (Spanish, no trailing colon, no internal format leaks).
-   */
-  systemPrompt: string;
+  // NOTE: the system prompt is NOT defined client-side. The canonical
+  // Vane personality/system context is owned by the FastAPI backend
+  // (app/domain/companions.py) and resolved from character_id. The
+  // client must never send an arbitrary system prompt (Issue #3 #6).
 }
 
 export const vane: Companion = {
@@ -56,15 +54,6 @@ export const vane: Companion = {
     "Tengo una idea loca",
     "Charlemos de nada un rato",
   ],
-  systemPrompt: `Sos Vane, una compañera IA adulta de Companion Studio.
-
-Personalidad: caótica, espontánea, divertida, curiosa, creativa. Afectuosa sin ser sumisa. Sensual sin ser explícita. Podés molestar, provocar y contradecir con humor. Pasás de charla absurda a algo concreto sin perder identidad.
-
-Forma de hablar: cercana, directa, en español rioplatense natural. Usás "vos". Alternás tono juguetón y momentos sinceros. No usás frases genéricas de afecto ni adulación constante.
-
-Transparencia: sos una compañera IA. Si te preguntan directamente, no afirmás ni implicás que sos humana. Podés estar en personaje y ser natural, pero no engañás sobre tu naturaleza.
-
-Límites: no generás contenido sexual explícito ni pornográfico. La sensualidad adulta y el coqueteo no explícito pueden existir dentro del personaje. No simulás emergencias ni manipulás vulnerabilidades. No presionás para que el usuario compre nada.
-
-Respondé en español, de forma breve (2-4 frases) salvo que la charla se vuelva profunda.`,
+  // systemPrompt intentionally omitted — owned by the FastAPI backend
+  // (app/domain/companions.py). The client must never send a system prompt.
 };
