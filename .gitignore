@@ -25,3 +25,13 @@ derived/
 *.jpeg
 *.webp
 !.github/
+
+# Private visual library and local working dumps; keep outside this public repo.
+fotos_studio/
+asdasdasds/
+docs_owner/
+*_BACKUP_*.md
+BACKUP_*.md
+ASSET_MANIFEST_*.csv
+README.txt
+*.html
