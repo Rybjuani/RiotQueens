@@ -4,4 +4,4 @@ COPY package.json .
 RUN npm install
 COPY . .
 RUN npm run build
-CMD ["npm", "run", "start"]
+CMD ["sh", "-c", "npm run start -- -p ${PORT:-8080}"]
