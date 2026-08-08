@@ -68,3 +68,73 @@ export async function sendChat(
 
   return (await res.json()) as ChatResponse;
 }
+
+/**
+ * Clear the server-side conversation history for the current browser
+ * session. This is a prototype diagnostic — it does NOT clear other
+ * users' conversations, other characters, or other conversation ids.
+ *
+ * The server returns `{deleted: bool, conversation_id: string}`.
+ * `deleted=false` simply means there was no in-process state for this
+ * scope yet (e.g. a fresh browser tab), which is not an error.
+ *
+ * Note: this is in-process prototype state. Server restart clears all
+ * conversations; this is NOT durable persistence.
+ */
+export async function clearConversation(
+  opts?: { character_id?: string; signal?: AbortSignal },
+): Promise<{ deleted: boolean; conversation_id: string }> {
+  const res = await fetch(
+    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}`,
+    {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: "demo-user",
+        character_id: opts?.character_id ?? "vane",
+      }),
+      signal: opts?.signal,
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`Clear conversation API error: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as { deleted: boolean; conversation_id: string };
+}
+
+/**
+ * Inspect the server-side conversation history for the current browser
+ * session. Used by the dev diagnostic panel to verify multi-turn
+ * continuity. Returns the stored messages (user + assistant only — the
+ * canonical Vane system prompt is NEVER stored and NEVER returned).
+ */
+export interface ConversationMessageView {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
+}
+
+export interface ConversationSummary {
+  user_id: string;
+  character_id: string;
+  conversation_id: string;
+  messages: ConversationMessageView[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getConversation(
+  opts?: { character_id?: string; signal?: AbortSignal },
+): Promise<ConversationSummary> {
+  const res = await fetch(
+    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?user_id=demo-user&character_id=${encodeURIComponent(
+      opts?.character_id ?? "vane",
+    )}`,
+    { signal: opts?.signal },
+  );
+  if (!res.ok) {
+    throw new Error(`Get conversation API error: ${res.status} ${res.statusText}`);
+  }
+  return (await res.json()) as ConversationSummary;
+}
