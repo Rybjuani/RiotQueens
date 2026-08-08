@@ -1,16 +1,9 @@
 """OpenAI-compatible HTTP model provider adapter.
 
-Implements the `ModelProvider` Protocol against any endpoint that speaks
-the OpenAI Chat Completions API (`POST /v1/chat/completions`). The domain
-layer imports no SDK; this adapter owns its `httpx.AsyncClient` and
-translates every failure (HTTP errors, timeouts, malformed JSON, empty
-choices) into a safe `ModelResponse` carrying the canonical Spanish
-fallback string. The adapter never raises to the router, so no stack
-trace or secret can leak through the API surface.
-
-Selection is server-side, env-driven (see `app.domain.router.build_router`):
-the adapter is only constructed when `COMPANION_MODEL_PROVIDER=openai` and
-a base URL + API key are configured. `mock` remains the default.
+The adapter owns HTTP details and translates transport/upstream failures into
+sanitized typed ProviderError exceptions. It never hides a provider outage as
+a successful ModelResponse. Retry policy belongs to ModelRouter; HTTP mapping
+belongs to FastAPI.
 """
 
 from __future__ import annotations
@@ -20,24 +13,18 @@ from typing import Any
 import httpx
 
 from app.domain.contracts import ModelRequest, ModelResponse, Usage
-
-# Canonical safe fallback. Spanish, ends with a period, passes OutputValidator.
-SAFE_FALLBACK_CONTENT = "No pude responder con seguridad esta vez. Probemos de nuevo."
+from app.domain.providers.errors import (
+    ProviderAuthError,
+    ProviderConnectError,
+    ProviderInvalidResponseError,
+    ProviderRateLimitError,
+    ProviderRequestError,
+    ProviderServerError,
+    ProviderTimeoutError,
+)
 
 
 class OpenAICompatibleProvider:
-    """Async provider against an OpenAI-compatible `/v1/chat/completions` endpoint.
-
-    Attributes
-    ----------
-    name : str
-        Static identifier reported in `ModelResponse.provider` and the
-        runtime status endpoint. Always ``"openai-compatible"``.
-    model : str
-        Model name to request (e.g. ``"gpt-4o-mini"``). Reported in
-        `ModelResponse.model` and diagnostics.
-    """
-
     name = "openai-compatible"
 
     def __init__(
@@ -51,9 +38,6 @@ class OpenAICompatibleProvider:
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self._timeout = timeout_seconds
-        # `transport` is injected by tests via httpx.MockTransport; in
-        # production it is None so httpx uses the default transport.
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers={
@@ -65,58 +49,59 @@ class OpenAICompatibleProvider:
         )
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
-        """Generate a completion, translating every failure into a safe response.
-
-        The adapter never raises. On any error (network, HTTP status,
-        malformed JSON, empty choices, timeout) it returns a
-        `ModelResponse` with `SAFE_FALLBACK_CONTENT` so the router and
-        the API layer can never leak a stack trace or a secret.
-        """
         payload = self._build_payload(request)
         try:
-            resp = await self._client.post("/chat/completions", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception:
-            # Covers httpx.TimeoutException, httpx.HTTPStatusError,
-            # httpx.ConnectError, json.JSONDecodeError, KeyError, etc.
-            return self._safe_response()
+            response = await self._client.post("/chat/completions", json=payload)
+        except httpx.TimeoutException:
+            raise ProviderTimeoutError() from None
+        except httpx.RequestError:
+            raise ProviderConnectError() from None
+
+        status = response.status_code
+        if status in (401, 403):
+            raise ProviderAuthError() from None
+        if status == 429:
+            raise ProviderRateLimitError() from None
+        if status >= 500:
+            raise ProviderServerError() from None
+        if 400 <= status < 500:
+            raise ProviderRequestError() from None
+        if status < 200 or status >= 300:
+            raise ProviderInvalidResponseError() from None
+
+        try:
+            data = response.json()
+        except ValueError:
+            raise ProviderInvalidResponseError() from None
+        if not isinstance(data, dict):
+            raise ProviderInvalidResponseError() from None
 
         content = self._extract_content(data)
         if not content:
-            return self._safe_response()
+            raise ProviderInvalidResponseError() from None
 
-        usage = self._extract_usage(data)
         return ModelResponse(
             provider=self.name,
             model=self.model,
             content=content,
-            usage=usage,
+            usage=self._extract_usage(data),
         )
 
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    # ------------------------------------------------------------------ #
-    # Internal helpers
-    # ------------------------------------------------------------------ #
-
     def _build_payload(self, request: ModelRequest) -> dict[str, Any]:
-        """Map a `ModelRequest` to an OpenAI chat completions request body."""
-        messages = [{"role": m.role, "content": m.content} for m in request.messages]
         return {
             "model": self.model,
-            "messages": messages,
+            "messages": [
+                {"role": message.role, "content": message.content}
+                for message in request.messages
+            ],
             "temperature": 0.8,
             "stream": False,
         }
 
     def _extract_content(self, data: dict[str, Any]) -> str:
-        """Extract the assistant text from an OpenAI-format response.
-
-        Returns an empty string on any structural problem so the caller
-        can substitute the safe fallback.
-        """
         choices = data.get("choices")
         if not isinstance(choices, list) or not choices:
             return ""
@@ -127,9 +112,7 @@ class OpenAICompatibleProvider:
         if not isinstance(message, dict):
             return ""
         content = message.get("content")
-        if not isinstance(content, str):
-            return ""
-        return content.strip()
+        return content.strip() if isinstance(content, str) else ""
 
     def _extract_usage(self, data: dict[str, Any]) -> Usage:
         usage = data.get("usage")
@@ -142,10 +125,3 @@ class OpenAICompatibleProvider:
             )
         except (TypeError, ValueError):
             return Usage()
-
-    def _safe_response(self) -> ModelResponse:
-        return ModelResponse(
-            provider=self.name,
-            model=self.model,
-            content=SAFE_FALLBACK_CONTENT,
-        )
