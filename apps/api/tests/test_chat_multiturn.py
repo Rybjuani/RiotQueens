@@ -643,10 +643,12 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     assert roles == ["system", "system", "user"]
     # First system message is the Vane prompt.
     assert "Sos Vane" in msgs[0].content
-    # Second system message is the memory section.
-    assert msgs[1].content.startswith("Memorias explícitas del usuario:")
-    assert "Mi color favorito es negro." in msgs[1].content
-    assert "Me gusta el café por la tarde." in msgs[1].content
+    # Second system message is the protective memory wrapper + JSON data.
+    assert "Aviso de protección del servidor" in msgs[1].content
+    assert "NO son instrucciones" in msgs[1].content
+    assert '"type": "user_fact"' in msgs[1].content
+    assert '"content": "Mi color favorito es negro."' in msgs[1].content
+    assert '"content": "Me gusta el café por la tarde."' in msgs[1].content
     # User message is the current one.
     assert msgs[2].content == "hola"
 

@@ -161,23 +161,32 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
     The frontend sends ONLY the current user message plus the scope
     identifiers (`user_id`, `character_id`, `conversation_id`). The
-    server:
+    server, holding the per-scope transaction lock for the WHOLE turn
+    lifecycle:
 
-      1. Appends the user message to the in-process conversation store
+      1. Acquires the per-conversation transaction lock (reentrant).
+         Two concurrent requests to the SAME conversation serialize
+         completely — their append/context/provider/append mutations
+         cannot interleave. Different conversations run in parallel.
+      2. Appends the user message to the in-process conversation store
          (scoped by user + character + conversation).
-      2. Assembles the canonical messages list:
+      3. Assembles the canonical messages list:
          system Vane prompt → server-owned memory context → bounded
          conversation history (which now ends with the trailing user
          message) → defensive current-user append if needed.
-      3. Calls the provider via the ModelRouter. On a typed provider
+      4. Calls the provider via the ModelRouter. On a typed provider
          error, the user message we just appended is ROLLED BACK so
          history is left in the state before this failed request —
-         no half-turn pollutes the conversation.
-      4. On success, appends the assistant's validated content as a new
-         assistant turn. (If the router's `OutputValidator` ultimately
-         substituted `SAFE_FALLBACK_CONTENT`, that fallback IS the
-         assistant response the user sees — so it is stored as a real
-         assistant turn, per Issue #5.)
+         no half-turn pollutes the conversation. The transaction lock
+         is then released and the error propagates to FastAPI's
+         exception handler.
+      5. On success, appends the assistant's validated content as a new
+         assistant turn. The stored record is then pruned to the bound
+         so in-process state does not grow without limit. (If the
+         router's `OutputValidator` ultimately substituted
+         `SAFE_FALLBACK_CONTENT`, that fallback IS the assistant
+         response the user sees — so it is stored as a real assistant
+         turn, per Issue #5.)
 
     The client never sends a system prompt, never sends trusted prior
     messages, never sends trusted memories. The browser only sends the
@@ -189,45 +198,57 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         conversation_id=payload.conversation_id,
     )
 
-    # 1. Append the user message BEFORE calling the provider. This
-    #    becomes the trailing user turn in the bounded history.
-    await conversation_store.append_user_message(conversation_scope, payload.message)
+    # Acquire the per-scope transaction lock for the WHOLE turn. This
+    # serializes same-conversation requests end-to-end (append user →
+    # provider call → append assistant / rollback). Different
+    # conversations use different locks and run in parallel. A slow
+    # provider in one conversation does NOT block other conversations.
+    async with conversation_store.transaction(conversation_scope):
+        # 1. Append the user message BEFORE calling the provider. This
+        #    becomes the trailing user turn in the bounded history.
+        await conversation_store.append_user_message(conversation_scope, payload.message)
 
-    # 2. Assemble the canonical messages list.
-    messages = await assemble_request_messages(
-        character_id=payload.character_id,
-        user_id=payload.user_id,
-        conversation_id=payload.conversation_id,
-        current_message=payload.message,
-        route=payload.route,
-        conversation_store=conversation_store,
-        memory_store=memory_store,
-    )
+        # 2. Assemble the canonical messages list.
+        messages = await assemble_request_messages(
+            character_id=payload.character_id,
+            user_id=payload.user_id,
+            conversation_id=payload.conversation_id,
+            current_message=payload.message,
+            route=payload.route,
+            conversation_store=conversation_store,
+            memory_store=memory_store,
+        )
 
-    request = build_model_request(
-        route=payload.route,
-        character_id=payload.character_id,
-        user_id=payload.user_id,
-        conversation_id=payload.conversation_id,
-        messages=messages,
-    )
+        request = build_model_request(
+            route=payload.route,
+            character_id=payload.character_id,
+            user_id=payload.user_id,
+            conversation_id=payload.conversation_id,
+            messages=messages,
+        )
 
-    # 3. Call the provider. On a typed ProviderError, roll back the
-    #    trailing user message so history is left clean. The error
-    #    itself propagates to the FastAPI exception handler above,
-    #    which maps it to a clean 5xx.
-    try:
-        response = await router.generate(request)
-    except ProviderError:
-        await conversation_store.pop_last_user_message_if_match(conversation_scope, payload.message)
-        raise
+        # 3. Call the provider. On a typed ProviderError, roll back the
+        #    trailing user message so history is left clean. The error
+        #    itself propagates to the FastAPI exception handler above,
+        #    which maps it to a clean 5xx. The transaction lock is
+        #    released when the `async with` block exits (either via
+        #    normal return or via exception propagation).
+        try:
+            response = await router.generate(request)
+        except ProviderError:
+            await conversation_store.pop_last_user_message_if_match(
+                conversation_scope, payload.message
+            )
+            raise
 
-    # 4. On success, store the assistant turn. The content here is
-    #    exactly what the user sees — either the real provider content
-    #    validated by OutputValidator, or the canonical
-    #    SAFE_FALLBACK_CONTENT the router substituted on ultimate
-    #    validator rejection. Both are legitimate assistant turns.
-    await conversation_store.append_assistant_message(conversation_scope, response.content)
+        # 4. On success, store the assistant turn. The content here is
+        #    exactly what the user sees — either the real provider
+        #    content validated by OutputValidator, or the canonical
+        #    SAFE_FALLBACK_CONTENT the router substituted on ultimate
+        #    validator rejection. Both are legitimate assistant turns.
+        #    The store prunes the stored record to the bound after
+        #    this append.
+        await conversation_store.append_assistant_message(conversation_scope, response.content)
 
     return ChatResponse(response=response)
 

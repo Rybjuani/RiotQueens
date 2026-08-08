@@ -6,8 +6,8 @@ single-process FastAPI runtimes. The Protocol-based interface
 (`ConversationStore`) is designed so a future PostgreSQL / Redis backend
 can be swapped in without changing the chat handler or the router.
 
-Hard scope rules (Issue #5)
----------------------------
+Hard scope rules (Issue #5 + auditor fix PR #6)
+----------------------------------------------
 1. A conversation is identified by the tuple
    ``(user_id, character_id, conversation_id)``. The store MUST NOT mix
    messages across different users, characters, or conversation ids.
@@ -18,16 +18,29 @@ Hard scope rules (Issue #5)
    auth/config, connect, malformed, empty) MUST NOT append a fake turn.
 4. History is bounded deterministically by `max_turns`
    (`COMPANION_CONVERSATION_MAX_TURNS`). The bound is applied to complete
-   user/assistant pairs; truncation never leaves a half-pair.
+   user/assistant pairs; truncation never leaves a half-pair. The bound
+   is applied to the STORED RECORD itself (not just the provider context)
+   so in-process state cannot grow without limit.
 5. Concurrent requests MUST NOT corrupt ordering. The in-process
-   implementation uses an `asyncio.Lock` per scope key.
+   implementation uses a REENTRANT `asyncio.Lock` per scope key. The
+   chat handler acquires the lock for the WHOLE turn lifecycle via
+   `transaction(scope)` so two concurrent requests to the same
+   conversation serialize completely: append user → assemble context →
+   provider call → append assistant (or rollback on failure). Different
+   conversation scopes use different locks and never block each other.
+6. Per-scope locks are NEVER deleted (even when the conversation is
+   deleted) to avoid the old-waiter / new-lock race. The prototype may
+   accumulate one lock per scope ever seen — acceptable for a
+   single-process prototype; a future persistent backend would manage
+   lock lifecycle differently.
 """
 
 from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
@@ -38,6 +51,60 @@ from .contracts import MessageInput
 def _utcnow() -> datetime:
     """Return a timezone-aware UTC datetime."""
     return datetime.now(UTC)
+
+
+# ---------------------------------------------------------------------- #
+# Reentrant async lock — allows the same task to acquire the per-scope
+# lock multiple times (transaction wraps multiple store calls).
+# ---------------------------------------------------------------------- #
+
+
+class _ReentrantAsyncLock:
+    """A reentrant `asyncio.Lock`. The same task can acquire it multiple
+    times without deadlocking. Acquisition count is tracked per-task so
+    a matching number of releases fully frees the lock.
+
+    This is used so the chat handler can hold the per-scope "transaction"
+    lock for the whole turn lifecycle (append user → provider call →
+    append assistant) while the store's public methods also acquire the
+    same lock for their individual mutations. The reentrant property
+    means the inner acquisitions are no-ops (just depth increments).
+    """
+
+    def __init__(self) -> None:
+        self._lock = asyncio.Lock()
+        self._owner: asyncio.Task[object] | None = None
+        self._depth = 0
+
+    async def acquire(self) -> None:
+        task = asyncio.current_task()
+        if self._owner is task:
+            self._depth += 1
+            return
+        await self._lock.acquire()
+        self._owner = task
+        self._depth = 1
+
+    def release(self) -> None:
+        task = asyncio.current_task()
+        if self._owner is not task:
+            raise RuntimeError("release() called by a task that does not own the lock")
+        self._depth -= 1
+        if self._depth == 0:
+            self._owner = None
+            self._lock.release()
+
+    async def __aenter__(self) -> _ReentrantAsyncLock:
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        self.release()
+
+    @property
+    def is_locked(self) -> bool:
+        """Return True if the lock is currently held by any task."""
+        return self._lock.locked()
 
 
 @dataclass(frozen=True)
@@ -91,6 +158,8 @@ class ConversationStore(Protocol):
     handler or the router.
     """
 
+    def transaction(self, scope: ConversationScopeKey) -> AsyncIterator[object]: ...
+
     async def append_user_message(
         self, scope: ConversationScopeKey, content: str
     ) -> StoredMessage: ...
@@ -108,6 +177,34 @@ class ConversationStore(Protocol):
     async def pop_last_user_message_if_match(
         self, scope: ConversationScopeKey, content: str
     ) -> bool: ...
+
+
+def _split_pairs(
+    messages: Sequence[StoredMessage],
+) -> tuple[list[tuple[StoredMessage, StoredMessage]], StoredMessage | None]:
+    """Split a message list into complete (user, assistant) pairs + optional trailing user.
+
+    Returns ``(pairs, trailing_user)`` where ``pairs`` is a list of
+    complete user/assistant pairs (oldest first) and ``trailing_user``
+    is the last message if it is an unpaired user turn (i.e. a request
+    is in flight).
+    """
+    pairs: list[tuple[StoredMessage, StoredMessage]] = []
+    trailing_user: StoredMessage | None = None
+    i = 0
+    while i < len(messages):
+        msg = messages[i]
+        if msg.role == "user":
+            if i + 1 < len(messages) and messages[i + 1].role == "assistant":
+                pairs.append((msg, messages[i + 1]))
+                i += 2
+                continue
+            trailing_user = msg
+            i += 1
+        else:
+            # assistant without preceding user, or unknown role — skip.
+            i += 1
+    return pairs, trailing_user
 
 
 def _bound_pairs(messages: Sequence[StoredMessage], max_turns: int) -> list[StoredMessage]:
@@ -135,50 +232,36 @@ def _bound_pairs(messages: Sequence[StoredMessage], max_turns: int) -> list[Stor
         raise ValueError("max_turns must be >= 0")
     if not messages:
         return []
-
-    # Walk the message list and split it into (user, assistant) pairs +
-    # an optional trailing unpaired user message.
-    pairs: list[tuple[StoredMessage, StoredMessage]] = []
-    trailing_user: StoredMessage | None = None
-    i = 0
-    while i < len(messages):
-        msg = messages[i]
-        if msg.role == "user":
-            # Look ahead for a paired assistant message.
-            if i + 1 < len(messages) and messages[i + 1].role == "assistant":
-                pairs.append((msg, messages[i + 1]))
-                i += 2
-                continue
-            # No paired assistant → this is the trailing user turn of an
-            # in-flight request. Preserve it so the current request can
-            # still include the just-appended user message.
-            trailing_user = msg
-            i += 1
-        elif msg.role == "assistant":
-            # An assistant message without a preceding user (shouldn't
-            # happen given the append order, but be defensive). Skip it
-            # — incomplete pair, can't form context.
-            i += 1
-        else:
-            # Unknown role. Defensive skip.
-            i += 1
-
-    # Apply the bound to the PAIRS only.
+    pairs, trailing_user = _split_pairs(messages)
     if max_turns == 0:
         kept_pairs: list[tuple[StoredMessage, StoredMessage]] = []
     else:
         kept_pairs = pairs[-max_turns:]
-
     out: list[StoredMessage] = []
     for u, a in kept_pairs:
         out.append(u)
         out.append(a)
     if trailing_user is not None:
-        # Always keep the in-flight user turn even when max_turns=0 so
-        # the current request can be sent (Issue #5: "first message
-        # stores user turn, sends [system, user]").
         out.append(trailing_user)
     return out
+
+
+def _prune_record(record: ConversationRecord, max_turns: int) -> None:
+    """Mutate ``record.messages`` in place to keep only the bounded set.
+
+    After a successful assistant turn (or after a rollback), this is
+    called to ensure the STORED record itself does not grow without
+    limit. Keeps at most ``max_turns`` complete user/assistant pairs
+    plus an optional trailing in-flight user message.
+    """
+    if max_turns < 0:
+        return
+    bounded = _bound_pairs(record.messages, max_turns)
+    # Only mutate if we actually reduced the list (avoid unnecessary
+    # list rebuilds on every turn when under the bound).
+    if len(bounded) < len(record.messages):
+        record.messages = bounded
+        record.updated_at = _utcnow()
 
 
 class InProcessConversationStore:
@@ -189,10 +272,25 @@ class InProcessConversationStore:
     clears all state — this is intentionally honest: it is NOT durable
     persistence.
 
-    Concurrency: each scope key has its own `asyncio.Lock`. Different
-    scopes never block each other; the same scope serializes its appends
-    so concurrent chat requests to the same conversation cannot interleave
-    their user/assistant turns out of order.
+    Concurrency (auditor fix PR #6):
+        Each scope key has its own REENTRANT `_ReentrantAsyncLock`. The
+        chat handler acquires the lock for the WHOLE turn lifecycle via
+        ``async with store.transaction(scope):``. Two concurrent requests
+        to the same conversation serialize completely — their
+        append/context/provider/append mutations cannot interleave.
+        Different conversation scopes use different locks and run in
+        parallel. A slow provider in one conversation does NOT block
+        other conversations.
+
+        The lock is reentrant so the public methods (`append_user_message`,
+        `get_history`, etc.) can also acquire the same lock for their
+        individual mutations — if the caller already holds the
+        transaction lock, the inner acquisition is a no-op.
+
+        Per-scope locks are NEVER deleted (even when the conversation is
+        deleted) to avoid the old-waiter / new-lock race. The prototype
+        may accumulate one lock per scope ever seen (~100 bytes each);
+        acceptable for a single-process prototype.
     """
 
     def __init__(self, max_turns: int = 8) -> None:
@@ -200,15 +298,20 @@ class InProcessConversationStore:
             raise ValueError("max_turns must be >= 0")
         self._max_turns = max_turns
         self._records: dict[ConversationScopeKey, ConversationRecord] = {}
-        self._locks: dict[ConversationScopeKey, asyncio.Lock] = {}
+        self._locks: dict[ConversationScopeKey, _ReentrantAsyncLock] = {}
 
-    def _lock_for(self, scope: ConversationScopeKey) -> asyncio.Lock:
-        # Lazily create one lock per scope. Dict access is atomic under
-        # the GIL for a single event loop, so this is safe for the
-        # in-process prototype.
+    def _lock_for(self, scope: ConversationScopeKey) -> _ReentrantAsyncLock:
+        # Lazily create one reentrant lock per scope. Dict access is
+        # atomic under the GIL for a single event loop.
+        #
+        # IMPORTANT (auditor fix): we NEVER delete per-scope locks, even
+        # when the conversation is deleted. Deleting the lock while a
+        # waiter holds it would let a new request create a second lock
+        # and bypass the wait — a race. Keeping the lock around costs
+        # ~100 bytes per scope ever seen, acceptable for a prototype.
         lock = self._locks.get(scope)
         if lock is None:
-            lock = asyncio.Lock()
+            lock = _ReentrantAsyncLock()
             self._locks[scope] = lock
         return lock
 
@@ -227,6 +330,30 @@ class InProcessConversationStore:
     def max_turns(self) -> int:
         return self._max_turns
 
+    @asynccontextmanager
+    async def transaction(self, scope: ConversationScopeKey) -> AsyncIterator[None]:
+        """Acquire the per-scope turn lock for the full chat turn lifecycle.
+
+        The chat handler wraps its whole turn in this:
+
+            async with conversation_store.transaction(scope):
+                await conversation_store.append_user_message(scope, message)
+                messages = await assemble_request_messages(...)
+                response = await router.generate(request)
+                await conversation_store.append_assistant_message(scope, response.content)
+                # OR on provider failure:
+                await conversation_store.pop_last_user_message_if_match(scope, message)
+
+        The lock is REENTRANT so the public methods called inside the
+        transaction can re-acquire the same lock without deadlocking.
+
+        Different conversation scopes use different locks and run in
+        parallel. A slow provider in one conversation does NOT block
+        other conversations.
+        """
+        async with self._lock_for(scope):
+            yield
+
     async def append_user_message(self, scope: ConversationScopeKey, content: str) -> StoredMessage:
         async with self._lock_for(scope):
             rec = self._record_for(scope)
@@ -242,6 +369,9 @@ class InProcessConversationStore:
             rec = self._record_for(scope)
             msg = StoredMessage(id=str(uuid.uuid4()), role="assistant", content=content)
             rec.messages.append(msg)
+            # Prune the STORED record to the bound so in-process state
+            # does not grow without limit (auditor fix PR #6 blocker 2).
+            _prune_record(rec, self._max_turns)
             rec.updated_at = _utcnow()
             return msg
 
@@ -253,27 +383,40 @@ class InProcessConversationStore:
         message if a request is currently in flight. The canonical
         system prompt is NEVER included here — it is re-prepended at
         request time by `assemble_request` in `context.py`.
+
+        Note: the stored record itself is also pruned to the bound after
+        each successful assistant turn, so this method returns the same
+        bounded view that the store actually holds. The bound is applied
+        here too for defensive consistency (in case the record was
+        mutated by a future code path that forgot to prune).
         """
         async with self._lock_for(scope):
             rec = self._records.get(scope)
             if rec is None:
                 return []
-            # Copy the list under the lock so concurrent appends cannot
-            # mutate it while we are slicing.
             snapshot = list(rec.messages)
         return _bound_pairs(snapshot, self._max_turns)
 
     async def get_conversation(self, scope: ConversationScopeKey) -> ConversationRecord | None:
+        """Return a deep-copy snapshot of the stored conversation record.
+
+        The returned ``messages`` list reflects the BOUNDED stored state
+        (the store prunes after each successful assistant turn). It does
+        NOT contain messages beyond ``max_turns`` complete pairs (plus
+        an optional in-flight trailing user). This is honest: the
+        prototype does not keep full permanent history.
+        """
         async with self._lock_for(scope):
             rec = self._records.get(scope)
             if rec is None:
                 return None
-            # Return a deep copy so external callers cannot mutate state.
+            # Return a deep copy with the bounded view.
+            bounded = _bound_pairs(rec.messages, self._max_turns)
             return ConversationRecord(
                 user_id=rec.user_id,
                 character_id=rec.character_id,
                 conversation_id=rec.conversation_id,
-                messages=list(rec.messages),
+                messages=bounded,
                 created_at=rec.created_at,
                 updated_at=rec.updated_at,
             )
@@ -284,13 +427,18 @@ class InProcessConversationStore:
         Returns True if a conversation existed and was deleted, False if
         there was nothing to delete. Other conversations (different user /
         character / conversation_id) are NOT touched.
+
+        Note (auditor fix): the per-scope lock is NOT deleted. It stays
+        in ``self._locks`` so a waiter that was blocked on it when the
+        delete happened still wakes up holding the SAME lock object (not
+        a freshly-created one). A subsequent request to the same scope
+        reuses the same lock, preserving serialization. The prototype may
+        accumulate one lock per scope ever seen.
         """
         async with self._lock_for(scope):
             existed = scope in self._records
             if existed:
                 del self._records[scope]
-                # Drop the lock too so the dict doesn't grow forever.
-                self._locks.pop(scope, None)
             return existed
 
     async def pop_last_user_message_if_match(
@@ -302,8 +450,7 @@ class InProcessConversationStore:
         with the given ``content``, remove it and return True. Otherwise
         return False and leave the history untouched.
 
-        This is the ONLY mutation path that removes a stored message.
-        It is used by the chat handler when the provider raises a typed
+        This is used by the chat handler when the provider raises a typed
         error: the user message we appended just before the call is
         popped so history is left in the state it was BEFORE the failed
         request. A subsequent retry re-appends the same user message
@@ -311,9 +458,9 @@ class InProcessConversationStore:
         — producing a complete (user, assistant) pair with no leftover
         failed half-turn.
 
-        The content match is defensive: if some other request appended
-        a different user message in between (which the per-scope lock
-        should prevent at the append level), we don't pop that one.
+        After the pop, the stored record is re-pruned to the bound
+        defensively (though it should already be bounded from the
+        previous successful turn).
         """
         async with self._lock_for(scope):
             rec = self._records.get(scope)
@@ -322,9 +469,35 @@ class InProcessConversationStore:
             last = rec.messages[-1]
             if last.role == "user" and last.content == content:
                 rec.messages.pop()
+                _prune_record(rec, self._max_turns)
                 rec.updated_at = _utcnow()
                 return True
             return False
+
+    # ------------------------------------------------------------------ #
+    # Test-only inspection helpers (NOT part of the Protocol; used by
+    # tests to verify the underlying stored state directly).
+    # ------------------------------------------------------------------ #
+
+    async def _raw_record(self, scope: ConversationScopeKey) -> ConversationRecord | None:
+        """Return the RAW (unbounded) stored record for testing.
+
+        Tests use this to verify that the stored state itself is pruned
+        to the bound, not just the provider context. The returned object
+        is a deep copy so tests cannot mutate internal state.
+        """
+        async with self._lock_for(scope):
+            rec = self._records.get(scope)
+            if rec is None:
+                return None
+            return ConversationRecord(
+                user_id=rec.user_id,
+                character_id=rec.character_id,
+                conversation_id=rec.conversation_id,
+                messages=list(rec.messages),
+                created_at=rec.created_at,
+                updated_at=rec.updated_at,
+            )
 
 
 def stored_to_message_input(msg: StoredMessage) -> MessageInput:
