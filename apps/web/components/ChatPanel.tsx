@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { vane } from "@/lib/companion";
-import { sendChat, type ChatMessage, type OutputValidation } from "@/lib/api";
+import {
+  clearConversation,
+  getConversation,
+  sendChat,
+  type ChatMessage,
+  type ConversationSummary,
+  type OutputValidation,
+} from "@/lib/api";
 
 interface Props {
   answers: Record<string, string>;
@@ -25,6 +32,7 @@ export function ChatPanel({ answers, onEdit }: Props) {
   const [validation, setValidation] = useState<OutputValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
+  const [serverTurnCount, setServerTurnCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch runtime/provider status once on mount (safe diagnostics, no secrets).
@@ -39,6 +47,23 @@ export function ChatPanel({ answers, onEdit }: Props) {
         /* diagnostics are best-effort; ignore failures */
       });
   }, []);
+
+  // Refresh the server-side turn count whenever the local bubble list
+  // changes. This is a small dev diagnostic that surfaces whether the
+  // backend actually persisted the turn (vs. just rendering it locally).
+  useEffect(() => {
+    let cancelled = false;
+    getConversation()
+      .then((summary: ConversationSummary) => {
+        if (!cancelled) setServerTurnCount(summary.messages.length);
+      })
+      .catch(() => {
+        /* best-effort diagnostic */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [messages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -84,9 +109,28 @@ export function ChatPanel({ answers, onEdit }: Props) {
     }
   };
 
+  const clearServerConversation = async () => {
+    if (loading) return;
+    setError(null);
+    try {
+      await clearConversation();
+      // Reset the local chat to the canonical greeting so the UI does
+      // not show stale bubbles after the server state was cleared.
+      setMessages([{ role: "assistant", content: vane.greeting }]);
+      setValidation(null);
+      setServerTurnCount(0);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido";
+      setError(msg);
+    }
+  };
+
   const statusLabel = runtime
     ? `provider: ${runtime.provider} · ${runtime.mode}`
     : "provider: ...";
+
+  const turnLabel =
+    serverTurnCount !== null ? `turnos server: ${serverTurnCount}` : "turnos server: ...";
 
   return (
     <section className="section" id="chat">
@@ -176,6 +220,27 @@ export function ChatPanel({ answers, onEdit }: Props) {
                 {validation.reasons.length > 0 && ` (${validation.reasons.join(", ")})`}
               </p>
             )}
+            <p className="chat-dev">
+              {turnLabel}{" "}
+              <button
+                type="button"
+                onClick={clearServerConversation}
+                disabled={loading}
+                style={{
+                  background: "transparent",
+                  border: "1px solid var(--violet, #a78bfa)",
+                  color: "var(--violet, #a78bfa)",
+                  borderRadius: "6px",
+                  padding: "2px 8px",
+                  marginLeft: "8px",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  fontSize: "0.85em",
+                }}
+                aria-label="Limpiar conversación server"
+              >
+                limpiar conversación
+              </button>
+            </p>
             <div className="chat-media">▣ Video enviado · placeholder · no generado en vivo</div>
           </div>
         </div>

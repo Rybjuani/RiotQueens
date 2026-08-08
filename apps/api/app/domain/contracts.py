@@ -134,3 +134,109 @@ class MockMedia(BaseModel):
     label: str
     is_placeholder: bool = True
     generated_in_realtime: bool = False
+
+
+# ---------------------------------------------------------------------- #
+# Conversation & memory API contracts (Issue #5)
+# ---------------------------------------------------------------------- #
+#
+# These contracts back the /v1/conversations and /v1/memories endpoints.
+# They are intentionally small and explicit. There is NO auth in this
+# milestone — `user_id` and `character_id` are prototype scope keys,
+# not secure identities. The handoff doc records this limitation
+# honestly.
+
+
+class ConversationMessageView(BaseModel):
+    """API view of a single stored conversation message.
+
+    Only ``user`` and ``assistant`` roles are ever stored; the canonical
+    Vane system prompt is NEVER persisted and is never returned here.
+    """
+
+    id: str
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str
+    created_at: datetime
+
+
+class ConversationSummary(BaseModel):
+    """API view of a full conversation, scoped by (user, character, conversation).
+
+    Returned by `GET /v1/conversations/{conversation_id}`. The
+    `messages` list is ordered oldest-first. System prompts are never
+    included.
+    """
+
+    user_id: str
+    character_id: str
+    conversation_id: str
+    messages: list[ConversationMessageView] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationScopeRequest(BaseModel):
+    """Body for scope-keyed conversation endpoints.
+
+    `user_id` defaults to the same prototype value `ChatRequest` uses
+    so the chat flow stays consistent without auth. `character_id`
+    defaults to ``"vane"`` to match the canonical companion.
+    """
+
+    user_id: str = "demo-user"
+    character_id: str = "vane"
+
+
+class MemoryCreateRequest(BaseModel):
+    """Body for `POST /v1/memories` — add an explicit user fact.
+
+    The client supplies only ``content`` plus the scope identifiers.
+    The server sets ``memory_type``, ``source``, ``confidence`` and
+    ``inferred`` — never the client.
+
+    The client CANNOT use this endpoint to upload a system prompt,
+    trusted role messages, or arbitrary provider instructions. The
+    only field that affects model context is ``content``, which is
+    stored verbatim as a fact and injected as a separate system-owned
+    memory section.
+    """
+
+    user_id: str = "demo-user"
+    character_id: str = "vane"
+    content: str = Field(min_length=1, max_length=500)
+
+
+class MemoryRecordView(BaseModel):
+    """API view of a single stored memory record."""
+
+    id: str
+    user_id: str
+    character_id: str
+    content: str
+    memory_type: str
+    source: str
+    confidence: str
+    inferred: bool
+    created_at: datetime
+
+
+class MemoryListResponse(BaseModel):
+    """Response for `GET /v1/memories`."""
+
+    memories: list[MemoryRecordView]
+    count: int
+
+
+class MemoryDeleteResponse(BaseModel):
+    """Response for `DELETE /v1/memories/{memory_id}`."""
+
+    deleted: bool
+    memory_id: str
+
+
+class ConversationDeleteResponse(BaseModel):
+    """Response for `DELETE /v1/conversations/{conversation_id}`."""
+
+    deleted: bool
+    conversation_id: str

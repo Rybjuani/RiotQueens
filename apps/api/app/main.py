@@ -1,18 +1,33 @@
 import os
+from datetime import UTC
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .domain.companions import get_system_prompt
+from .domain.context import assemble_request_messages, build_model_request
 from .domain.contracts import (
     CharacterCreateRequest,
     ChatRequest,
     ChatResponse,
-    MessageInput,
+    ConversationDeleteResponse,
+    ConversationMessageView,
+    ConversationScopeRequest,
+    ConversationSummary,
+    MemoryCreateRequest,
+    MemoryDeleteResponse,
+    MemoryListResponse,
+    MemoryRecordView,
     MockMedia,
-    ModelRequest,
     ProfileOnboardingRequest,
+)
+from .domain.conversations import (
+    ConversationScopeKey,
+    InProcessConversationStore,
+)
+from .domain.memories import (
+    InProcessMemoryStore,
+    MemoryScopeKey,
 )
 from .domain.providers.errors import (
     ProviderAuthError,
@@ -26,7 +41,7 @@ from .domain.providers.errors import (
 )
 from .domain.router import build_router, runtime_status
 
-app = FastAPI(title="Companion Studio API", version="0.2.0")
+app = FastAPI(title="Companion Studio API", version="0.3.0")
 
 _cors_env = os.environ.get("COMPANION_CORS_ORIGINS", "http://localhost:3000")
 _cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
@@ -40,6 +55,35 @@ app.add_middleware(
 
 router = build_router()
 state: dict[str, object] = {}
+
+
+def _env_int_optional(name: str, default: int) -> int:
+    """Read an int env var, falling back to default on missing/invalid."""
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= 0 else default
+
+
+# ---------------------------------------------------------------------- #
+# In-process conversation & memory stores (Issue #5).
+# ---------------------------------------------------------------------- #
+#
+# These are intentionally in-process prototype state. Server restart
+# clears them. The ConversationStore / MemoryStore Protocols are
+# designed so a future PostgreSQL / Redis backend can replace these
+# implementations without touching the chat handler, the router, or
+# the API surface.
+
+_CONVERSATION_MAX_TURNS = _env_int_optional("COMPANION_CONVERSATION_MAX_TURNS", 8)
+_MEMORY_MAX_PER_SCOPE = _env_int_optional("COMPANION_MEMORY_MAX_PER_SCOPE", 32)
+
+conversation_store = InProcessConversationStore(max_turns=_CONVERSATION_MAX_TURNS)
+memory_store = InProcessMemoryStore(max_per_scope=_MEMORY_MAX_PER_SCOPE)
 
 
 _PROVIDER_HTTP_STATUS: dict[type[ProviderError], int] = {
@@ -83,7 +127,20 @@ async def health() -> dict[str, str]:
 
 @app.get("/v1/runtime/status")
 async def get_runtime_status() -> dict[str, object]:
-    return runtime_status(router)
+    """Safe provider diagnostics, plus prototype state-store config.
+
+    The returned fields never include API keys, Authorization headers,
+    URLs with sensitive query, or internal stacks. The
+    ``conversation_max_turns`` and ``memory_max_per_scope`` fields are
+    safe config values; the actual stored messages and memory contents
+    are never surfaced here.
+    """
+    base = runtime_status(router)
+    return {
+        **base,
+        "conversation_max_turns": conversation_store.max_turns,
+        "memory_max_per_scope": memory_store.max_per_scope,
+    }
 
 
 @app.post("/v1/onboarding/profile")
@@ -100,21 +157,290 @@ async def create_character(payload: CharacterCreateRequest) -> dict[str, object]
 
 @app.post("/v1/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
-    messages: list[MessageInput] = []
-    system_prompt = get_system_prompt(payload.character_id)
-    if system_prompt:
-        messages.append(MessageInput(role="system", content=system_prompt))
-    messages.append(MessageInput(role="user", content=payload.message))
+    """Send a single chat message and rebuild canonical server context.
 
-    request = ModelRequest(
-        route=payload.route,
-        character_id=payload.character_id,
+    The frontend sends ONLY the current user message plus the scope
+    identifiers (`user_id`, `character_id`, `conversation_id`). The
+    server, holding the per-scope transaction lock for the WHOLE turn
+    lifecycle:
+
+      1. Acquires the per-conversation transaction lock (reentrant).
+         Two concurrent requests to the SAME conversation serialize
+         completely — their append/context/provider/append mutations
+         cannot interleave. Different conversations run in parallel.
+      2. Appends the user message to the in-process conversation store
+         (scoped by user + character + conversation).
+      3. Assembles the canonical messages list:
+         system Vane prompt → server-owned memory context → bounded
+         conversation history (which now ends with the trailing user
+         message) → defensive current-user append if needed.
+      4. Calls the provider via the ModelRouter. On a typed provider
+         error, the user message we just appended is ROLLED BACK so
+         history is left in the state before this failed request —
+         no half-turn pollutes the conversation. The transaction lock
+         is then released and the error propagates to FastAPI's
+         exception handler.
+      5. On success, appends the assistant's validated content as a new
+         assistant turn. The stored record is then pruned to the bound
+         so in-process state does not grow without limit. (If the
+         router's `OutputValidator` ultimately substituted
+         `SAFE_FALLBACK_CONTENT`, that fallback IS the assistant
+         response the user sees — so it is stored as a real assistant
+         turn, per Issue #5.)
+
+    The client never sends a system prompt, never sends trusted prior
+    messages, never sends trusted memories. The browser only sends the
+    current message and the scope identifiers.
+    """
+    conversation_scope = ConversationScopeKey(
         user_id=payload.user_id,
+        character_id=payload.character_id,
         conversation_id=payload.conversation_id,
-        messages=messages,
     )
-    response = await router.generate(request)
+
+    # Acquire the per-scope transaction lock for the WHOLE turn. This
+    # serializes same-conversation requests end-to-end (append user →
+    # provider call → append assistant / rollback). Different
+    # conversations use different locks and run in parallel. A slow
+    # provider in one conversation does NOT block other conversations.
+    async with conversation_store.transaction(conversation_scope):
+        # 1. Append the user message BEFORE calling the provider. This
+        #    becomes the trailing user turn in the bounded history.
+        await conversation_store.append_user_message(conversation_scope, payload.message)
+
+        # 2. Assemble the canonical messages list.
+        messages = await assemble_request_messages(
+            character_id=payload.character_id,
+            user_id=payload.user_id,
+            conversation_id=payload.conversation_id,
+            current_message=payload.message,
+            route=payload.route,
+            conversation_store=conversation_store,
+            memory_store=memory_store,
+        )
+
+        request = build_model_request(
+            route=payload.route,
+            character_id=payload.character_id,
+            user_id=payload.user_id,
+            conversation_id=payload.conversation_id,
+            messages=messages,
+        )
+
+        # 3. Call the provider. On a typed ProviderError, roll back the
+        #    trailing user message so history is left clean. The error
+        #    itself propagates to the FastAPI exception handler above,
+        #    which maps it to a clean 5xx. The transaction lock is
+        #    released when the `async with` block exits (either via
+        #    normal return or via exception propagation).
+        try:
+            response = await router.generate(request)
+        except ProviderError:
+            await conversation_store.pop_last_user_message_if_match(
+                conversation_scope, payload.message
+            )
+            raise
+
+        # 4. On success, store the assistant turn. The content here is
+        #    exactly what the user sees — either the real provider
+        #    content validated by OutputValidator, or the canonical
+        #    SAFE_FALLBACK_CONTENT the router substituted on ultimate
+        #    validator rejection. Both are legitimate assistant turns.
+        #    The store prunes the stored record to the bound after
+        #    this append.
+        await conversation_store.append_assistant_message(conversation_scope, response.content)
+
     return ChatResponse(response=response)
+
+
+# ---------------------------------------------------------------------- #
+# Conversation inspect / delete APIs (Issue #5 task 8)
+# ---------------------------------------------------------------------- #
+
+
+@app.get(
+    "/v1/conversations/{conversation_id}",
+    response_model=ConversationSummary,
+)
+async def get_conversation(
+    conversation_id: str,
+    user_id: str = Query(default="demo-user"),
+    character_id: str = Query(default="vane"),
+) -> ConversationSummary:
+    """Return the stored messages for one conversation scope.
+
+    Scope is enforced by `(user_id, character_id, conversation_id)`. A
+    different user / character / conversation id CANNOT see this
+    conversation's messages. Returns an empty message list (with the
+    scope identifiers echoed back) if the conversation does not exist
+    yet — this is graceful for a fresh browser session.
+
+    NOTE: there is no auth in this milestone. `user_id` and
+    `character_id` are prototype scope keys, not secure identities.
+    """
+    scope = ConversationScopeKey(
+        user_id=user_id,
+        character_id=character_id,
+        conversation_id=conversation_id,
+    )
+    record = await conversation_store.get_conversation(scope)
+    if record is None:
+        # Return an empty summary with the scope echoed back. Use a
+        # stable created_at/updated_at = now so the response shape is
+        # consistent.
+        from datetime import datetime
+
+        now = datetime.now(UTC)
+        return ConversationSummary(
+            user_id=user_id,
+            character_id=character_id,
+            conversation_id=conversation_id,
+            messages=[],
+            created_at=now,
+            updated_at=now,
+        )
+    return ConversationSummary(
+        user_id=record.user_id,
+        character_id=record.character_id,
+        conversation_id=record.conversation_id,
+        messages=[
+            ConversationMessageView(
+                id=m.id, role=m.role, content=m.content, created_at=m.created_at
+            )
+            for m in record.messages
+        ],
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+    )
+
+
+@app.delete(
+    "/v1/conversations/{conversation_id}",
+    response_model=ConversationDeleteResponse,
+)
+async def delete_conversation(
+    conversation_id: str,
+    payload: ConversationScopeRequest,
+) -> ConversationDeleteResponse:
+    """Clear the in-process conversation state for one scope.
+
+    Only the conversation matching the body's `user_id` +
+    `character_id` + the path's `conversation_id` is deleted. Other
+    conversations — same user different conversation, different user,
+    different character — are NOT touched.
+
+    Returns ``{"deleted": bool, "conversation_id": str}`` where
+    ``deleted`` is True iff a conversation existed and was removed.
+    """
+    scope = ConversationScopeKey(
+        user_id=payload.user_id,
+        character_id=payload.character_id,
+        conversation_id=conversation_id,
+    )
+    existed = await conversation_store.delete_conversation(scope)
+    return ConversationDeleteResponse(deleted=existed, conversation_id=conversation_id)
+
+
+# ---------------------------------------------------------------------- #
+# Memory APIs (Issue #5 task 7)
+# ---------------------------------------------------------------------- #
+
+
+@app.get("/v1/memories", response_model=MemoryListResponse)
+async def list_memories(
+    user_id: str = Query(default="demo-user"),
+    character_id: str = Query(default="vane"),
+) -> MemoryListResponse:
+    """List the explicit user-fact memories for one scope.
+
+    Scope is enforced by `(user_id, character_id)`. A different user or
+    character CANNOT see this scope's memories. Returns an empty list
+    if no memories exist yet.
+
+    NOTE: there is no auth in this milestone. `user_id` and
+    `character_id` are prototype scope keys, not secure identities.
+    """
+    scope = MemoryScopeKey(user_id=user_id, character_id=character_id)
+    records = await memory_store.list_memories(scope)
+    return MemoryListResponse(
+        memories=[
+            MemoryRecordView(
+                id=r.id,
+                user_id=r.user_id,
+                character_id=r.character_id,
+                content=r.content,
+                memory_type=r.memory_type,
+                source=r.source,
+                confidence=r.confidence,
+                inferred=r.inferred,
+                created_at=r.created_at,
+            )
+            for r in records
+        ],
+        count=len(records),
+    )
+
+
+@app.post("/v1/memories", response_model=MemoryRecordView, status_code=201)
+async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
+    """Add an explicit user-fact memory.
+
+    The client supplies only `content` (1-500 chars) and the scope
+    identifiers. The server sets `memory_type=user_fact`,
+    `source=explicit_user_statement`, `confidence=high`, `inferred=False`.
+    The client CANNOT use this endpoint to upload a system prompt,
+    trusted role messages, or arbitrary provider instructions —
+    `content` is stored verbatim as a fact and injected as a separate
+    server-owned memory section in the model request.
+
+    If the scope exceeds `COMPANION_MEMORY_MAX_PER_SCOPE`, the oldest
+    memory is evicted (FIFO).
+    """
+    scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
+    record = await memory_store.add_memory(scope, payload.content)
+    return MemoryRecordView(
+        id=record.id,
+        user_id=record.user_id,
+        character_id=record.character_id,
+        content=record.content,
+        memory_type=record.memory_type,
+        source=record.source,
+        confidence=record.confidence,
+        inferred=record.inferred,
+        created_at=record.created_at,
+    )
+
+
+@app.delete("/v1/memories/{memory_id}", response_model=MemoryDeleteResponse)
+async def delete_memory(
+    memory_id: str,
+    payload: ConversationScopeRequest,
+) -> MemoryDeleteResponse:
+    """Delete a single explicit user-fact memory by id within a scope.
+
+    The scope check is MANDATORY: a memory id from a different user or
+    character CANNOT be deleted through this endpoint. Returns 404
+    (via `deleted=False`) if the memory id is unknown within the scope.
+
+    NOTE: there is no auth in this milestone. `user_id` and
+    `character_id` are prototype scope keys, not secure identities.
+    """
+    scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
+    deleted = await memory_store.delete_memory(scope, memory_id)
+    if not deleted:
+        # Clean 404 for unknown id within scope. We do NOT leak whether
+        # the id exists in a different scope — that would be an
+        # information-disclosure side channel.
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": {
+                    "code": "memory_not_found",
+                    "message": "Memory not found within the requested scope.",
+                }
+            },
+        )
+    return MemoryDeleteResponse(deleted=True, memory_id=memory_id)
 
 
 @app.get("/v1/media/mock", response_model=MockMedia)
