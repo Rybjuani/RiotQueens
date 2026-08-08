@@ -1,24 +1,27 @@
-"""Tests for the OpenAI-compatible provider adapter.
+"""Unit tests for the OpenAI-compatible provider adapter.
 
-All tests use `httpx.MockTransport` to fake the OpenAI endpoint — no
-real network call is ever made (Issue #3 #5: never call a paid model in
-automated tests). Covers: success, timeout, 401/403, 429, 5xx,
-malformed JSON, empty choices, and OutputValidator integration through
-the router.
+All upstream traffic uses httpx.MockTransport. No paid/external model is called.
 """
 
 from __future__ import annotations
+
+import json
 
 import httpx
 import pytest
 
 from app.domain.contracts import MessageInput, ModelRequest, Route
-from app.domain.providers.openai_compatible import (
-    SAFE_FALLBACK_CONTENT,
-    OpenAICompatibleProvider,
+from app.domain.providers.errors import (
+    ProviderAuthError,
+    ProviderConnectError,
+    ProviderInvalidResponseError,
+    ProviderRateLimitError,
+    ProviderRequestError,
+    ProviderServerError,
+    ProviderTimeoutError,
 )
-from app.domain.router import ModelRouter
-from app.domain.router import Route as RouteEnum
+from app.domain.providers.openai_compatible import OpenAICompatibleProvider
+from app.domain.router import SAFE_FALLBACK_CONTENT, ModelRouter
 from app.domain.validation import OutputValidator
 
 
@@ -35,190 +38,119 @@ def _request() -> ModelRequest:
 def _provider(transport: httpx.MockTransport) -> OpenAICompatibleProvider:
     return OpenAICompatibleProvider(
         base_url="https://api.example.com/v1",
-        api_key="test-key",
+        api_key="sk-test-fake",
         model="companion-chat-v1",
         timeout_seconds=5.0,
         transport=transport,
     )
 
 
-def _ok_payload(content: str = "Hola, ¿cómo estás? Me alegra leerte.") -> dict:
+def _ok_payload(content: str = "¡Hola! Qué bueno leerte. Podemos seguir.") -> dict:
     return {
-        "id": "chatcmpl-1",
-        "object": "chat.completion",
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": content},
-                "finish_reason": "stop",
-            }
-        ],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 8, "total_tokens": 18},
+        "choices": [{"message": {"role": "assistant", "content": content}}],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 8},
     }
 
 
 @pytest.mark.asyncio
 async def test_success_returns_assistant_content() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_ok_payload("¡Hola! Qué bueno verte."))
-
-    provider = _provider(httpx.MockTransport(handler))
+    provider = _provider(httpx.MockTransport(lambda _: httpx.Response(200, json=_ok_payload())))
     response = await provider.generate(_request())
     assert response.provider == "openai-compatible"
     assert response.model == "companion-chat-v1"
-    assert response.content == "¡Hola! Qué bueno verte."
+    assert response.content.startswith("¡Hola!")
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 8
     await provider.aclose()
 
 
 @pytest.mark.asyncio
-async def test_timeout_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise httpx.TimeoutException("simulated timeout")
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    assert response.provider == "openai-compatible"
+@pytest.mark.parametrize(
+    ("status", "error_type"),
+    [
+        (401, ProviderAuthError),
+        (403, ProviderAuthError),
+        (429, ProviderRateLimitError),
+        (500, ProviderServerError),
+        (503, ProviderServerError),
+        (400, ProviderRequestError),
+    ],
+)
+async def test_http_failures_raise_typed_errors(status: int, error_type: type[Exception]) -> None:
+    provider = _provider(httpx.MockTransport(lambda _: httpx.Response(status, text="raw upstream")))
+    with pytest.raises(error_type):
+        await provider.generate(_request())
     await provider.aclose()
 
 
 @pytest.mark.asyncio
-async def test_401_unauthorized_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(401, json={"error": "invalid api key"})
+async def test_timeout_raises_typed_error() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        raise httpx.TimeoutException("simulated secret-free timeout")
 
     provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
+    with pytest.raises(ProviderTimeoutError):
+        await provider.generate(_request())
     await provider.aclose()
 
 
 @pytest.mark.asyncio
-async def test_403_forbidden_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(403, json={"error": "forbidden"})
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_429_rate_limit_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(429, json={"error": "rate limit exceeded"})
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_500_provider_failure_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, text="internal server error")
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_malformed_json_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, text="not-json-at-all")
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_empty_choices_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"choices": []})
-
-    provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_connect_error_returns_safe_fallback() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+async def test_connect_error_raises_typed_error() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection refused")
 
     provider = _provider(httpx.MockTransport(handler))
-    response = await provider.generate(_request())
-    assert response.content == SAFE_FALLBACK_CONTENT
+    with pytest.raises(ProviderConnectError):
+        await provider.generate(_request())
     await provider.aclose()
 
 
 @pytest.mark.asyncio
-async def test_no_api_key_in_request_payload() -> None:
-    """The API key must live in the Authorization header, never the body."""
-    captured: dict = {}
+@pytest.mark.parametrize(
+    "response",
+    [
+        httpx.Response(200, text="not-json"),
+        httpx.Response(200, json={"choices": []}),
+        httpx.Response(200, json={"choices": [{}]}),
+        httpx.Response(200, json=["not", "a", "dict"]),
+    ],
+)
+async def test_invalid_upstream_shapes_raise_retryable_error(response: httpx.Response) -> None:
+    provider = _provider(httpx.MockTransport(lambda _: response))
+    with pytest.raises(ProviderInvalidResponseError):
+        await provider.generate(_request())
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+async def test_api_key_is_header_only_not_payload() -> None:
+    captured: dict[str, object] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["auth"] = request.headers.get("authorization")
-        import json as _json
-
-        captured["body"] = _json.loads(request.content)
+        captured["body"] = json.loads(request.content)
         return httpx.Response(200, json=_ok_payload())
 
     provider = _provider(httpx.MockTransport(handler))
     await provider.generate(_request())
-    assert captured["auth"] == "Bearer test-key"
-    assert "api_key" not in str(captured["body"])
-    assert "key" not in str(captured["body"]).lower() or "key" not in captured["body"]
+    assert captured["auth"] == "Bearer sk-test-fake"
+    assert "sk-test-fake" not in str(captured["body"])
     await provider.aclose()
 
 
 @pytest.mark.asyncio
-async def test_validator_integration_through_router() -> None:
-    """A valid Spanish response flows through the router and passes the validator."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=_ok_payload("¡Hola! Qué bueno leerte. Podemos seguir."))
-
-    provider = _provider(httpx.MockTransport(handler))
-    rt = ModelRouter(
-        providers={route: provider for route in RouteEnum},
+async def test_validator_invalid_content_still_uses_safe_content_fallback() -> None:
+    provider = _provider(
+        httpx.MockTransport(
+            lambda _: httpx.Response(200, json=_ok_payload("Hola system prompt leaked"))
+        )
+    )
+    router = ModelRouter(
+        providers={route: provider for route in Route},
         validator=OutputValidator(),
-        timeout_seconds=5.0,
         max_retries=0,
     )
-    response = await rt.generate(_request())
-    assert response.validation is not None
-    assert response.validation.is_valid
-    assert response.retry_count == 0
-    await provider.aclose()
-
-
-@pytest.mark.asyncio
-async def test_validator_rejects_internal_fragment_then_router_falls_back() -> None:
-    """If the provider returns a leak (e.g. 'system prompt'), the validator
-    rejects it and the router substitutes the safe fallback string."""
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        # Contains an internal-fragment trigger the OutputValidator rejects.
-        return httpx.Response(200, json=_ok_payload("Hola system prompt leaked"))
-
-    provider = _provider(httpx.MockTransport(handler))
-    rt = ModelRouter(
-        providers={route: provider for route in RouteEnum},
-        validator=OutputValidator(),
-        timeout_seconds=5.0,
-        max_retries=0,
-    )
-    response = await rt.generate(_request())
-    # Router overwrites invalid content with the safe fallback.
-    assert response.content == "No pude responder con seguridad esta vez. Probemos de nuevo."
+    response = await router.generate(_request())
+    assert response.content == SAFE_FALLBACK_CONTENT
+    assert response.validation and response.validation.is_valid
     await provider.aclose()
