@@ -1,181 +1,181 @@
 # HANDOFF — Runtime Provider v1
 
-**Branch:** `feat/provider-runtime-v1`
-**Base:** `chore/bootstrap-architecture`
-**Date:** 2026-08-07
-**Issue:** [#3 — Runtime provider foundation: real FastAPI model adapter + browser E2E](https://github.com/Rybjuani/Companion-Studio/issues/3)
+**Branch:** `feat/provider-runtime-v1`  
+**Base:** `chore/bootstrap-architecture`  
+**Date:** 2026-08-07  
+**Issue:** #3 — Runtime provider foundation: real FastAPI model adapter + browser E2E  
+**PR:** #4
 
 ## Resumen
 
-Se construyó el runtime provider foundation: un adapter `OpenAICompatibleProvider`
-real detrás del `ModelProvider` Protocol existente, selección de provider por
-env vars server-side, sistema de companion Vane propiedad del server, CORS de
-dev, endpoint de diagnósticos seguro, `conversation_id` por sesión de browser,
-y E2E de browser real que envía un mensaje y renderiza la respuesta. El mock
-sigue siendo el fallback local determinista por defecto.
+Companion Studio ya tiene una base de runtime real detrás del backend FastAPI:
 
-## Architecture changes
+- `MockModelProvider` sigue siendo el default local determinista.
+- `OpenAICompatibleProvider` implementa un provider HTTP real detrás del `ModelProvider` Protocol.
+- Vane y su system prompt canónico viven del lado server.
+- El frontend usa un `conversation_id` por sesión de browser.
+- `/v1/runtime/status` expone diagnostics seguros sin secretos.
+- Los errores de provider son typed + sanitized.
+- El adapter NO convierte outages/rate limits/timeouts en respuestas HTTP 200.
+- `ModelRouter` es dueño del retry policy.
+- FastAPI es dueño del HTTP error mapping.
+- El safe content fallback queda reservado para rechazo final de `OutputValidator`.
 
-### Nuevo: `OpenAICompatibleProvider` (`app/domain/providers/openai_compatible.py`)
-- Implementa el `ModelProvider` Protocol (sin cambios al Protocol).
-- Habla el wire format de OpenAI Chat Completions (`POST /chat/completions`,
-  `Authorization: Bearer <key>`). El dominio no importa ningún SDK; el adapter
-  es dueño de su `httpx.AsyncClient`.
-- **Nunca levanta una excepción al router.** Toda falla (network, HTTP 4xx/5xx,
-  timeout, JSON malformado, `choices` vacío, connect error) se traduce en un
-  `ModelResponse` con el string seguro en español
-  `"No pude responder con seguridad esta vez. Probemos de nuevo."`. Esto
-  garantiza que ni stack trace ni secretos puedan filtrarse.
+## Arquitectura final
 
-### Nuevo: `build_router()` factory (`app/domain/router.py`)
-- Lee `COMPANION_MODEL_*` env vars en startup.
-- `mock` (default) → `MockModelProvider` para todas las rutas.
-- `openai` + `BASE_URL` + `API_KEY` presentes → `OpenAICompatibleProvider`
-  para todas las rutas.
-- `openai` sin credenciales → fallback a mock (install/lint/test/run nunca
-  requieren key real).
-
-### Nuevo: `runtime_status()` + `GET /v1/runtime/status`
-- Retorna `{provider, model, configured, mode, timeout_seconds, max_retries}`.
-- **No** retorna: API key, Authorization header, URL completa con query
-  sensible, stack interno.
-
-### Nuevo: Server-owned Vane system prompt (`app/domain/companions.py`)
-- `get_system_prompt(character_id)` resuelve el system prompt canónico de Vane.
-- El handler `/v1/chat` lo inyecta como `MessageInput(role="system")` al
-  frente de `ModelRequest.messages`. El cliente **nunca** envía system prompt.
-- `ModelRequest` / `ChatRequest` contracts sin cambios (`extra="forbid"` respetado).
-
-### Nuevo: CORS (`app/main.py`)
-- `CORSMiddleware` con `COMPANION_CORS_ORIGINS` (default `http://localhost:3000`).
-- No es wildcard en producción; orígenes separados por coma.
-
-### Handler robustez (`app/main.py`)
-- `try/except RuntimeError` alrededor de `router.generate()` → si el router
-  agota retries por timeout, devuelve `ModelResponse` seguro en vez de 500.
-
-### Frontend
-- `lib/session.ts`: `getConversationId()` — UUID + `sessionStorage`. Reemplaza
-  el `conversation_id="web-session"` compartido. No es memoria persistente.
-- `lib/api.ts`: usa `getConversationId()`.
-- `components/ChatPanel.tsx`: fetch de `/v1/runtime/status` on mount; header
-  muestra `provider: <name> · <mode>` dinámicamente (desde el response real).
-- `lib/companion.ts`: `systemPrompt` **eliminado** del cliente. Solo campos
-  display-only (name, greeting, quickPrompts, portrait, etc.).
-
-### ADR
-- `docs/adr/0006-openai-compatible-provider.md` — documenta la decisión.
-
-## Changed files
-
-### Backend (apps/api)
-- `app/main.py` — CORS, build_router(), system prompt injection, /v1/runtime/status, try/except.
-- `app/domain/router.py` — `build_router()` + `runtime_status()` factories.
-- `app/domain/companions.py` — **nuevo** — Vane system prompt registry.
-- `app/domain/providers/__init__.py` — **nuevo** — providers package.
-- `app/domain/providers/openai_compatible.py` — **nuevo** — adapter.
-- `pyproject.toml` — `httpx>=0.27` movido a runtime deps; version 0.2.0.
-- `tests/test_openai_provider.py` — **nuevo** — 11 tests (mock HTTP).
-- `tests/test_runtime.py` — **nuevo** — 10 tests (handler, status, build_router).
-
-### Frontend (apps/web)
-- `lib/session.ts` — **nuevo** — per-browser-session conversation_id.
-- `lib/api.ts` — usa `getConversationId()`.
-- `components/ChatPanel.tsx` — runtime status fetch + dynamic provider label.
-- `lib/companion.ts` — `systemPrompt` removed (server-owned now).
-
-### Docs / config
-- `.env.example` — `COMPANION_MODEL_*` + `COMPANION_CORS_ORIGINS` placeholders.
-- `docs/adr/0006-openai-compatible-provider.md` — **nuevo** ADR.
-
-## Provider selection logic
-
-```
-COMPANION_MODEL_PROVIDER=mock (default)
-  → MockModelProvider for all routes
-  → mode: "mock", configured: false
-
-COMPANION_MODEL_PROVIDER=openai
-  + COMPANION_MODEL_BASE_URL set
-  + COMPANION_MODEL_API_KEY set
-    → OpenAICompatibleProvider for all routes
-    → mode: "real", configured: true
-  + missing base_url or api_key
-    → fallback to MockModelProvider (graceful)
-    → mode: "mock", configured: false
+```text
+Next.js browser
+  -> POST FastAPI /v1/chat
+  -> server resolves canonical Vane context
+  -> ModelRouter
+  -> MockModelProvider OR OpenAICompatibleProvider
+  -> typed ProviderError on upstream/runtime failure
+  -> bounded retry in ModelRouter
+  -> OutputValidator on successful model content
+  -> ChatResponse OR safe FastAPI 5xx error
 ```
 
-## Env vars
+No existe un segundo core backend en Next.js.
 
-| Var | Default | Purpose |
-|---|---|---|
-| `COMPANION_MODEL_PROVIDER` | `mock` | `mock` or `openai` |
-| `COMPANION_MODEL_BASE_URL` | (empty) | OpenAI-compatible base URL |
-| `COMPANION_MODEL_API_KEY` | (empty) | Server-side API key (never client) |
-| `COMPANION_MODEL_NAME` | `companion-chat-v1` | Model name to request |
-| `COMPANION_MODEL_TIMEOUT_SECONDS` | `5.0` | Per-call timeout |
-| `COMPANION_MODEL_MAX_RETRIES` | `1` | Bounded retries |
-| `COMPANION_CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
+## Provider selection
 
-## Real vs Mock
+Server-side env vars:
 
-| Componente | Estado |
-|---|---|
-| `OpenAICompatibleProvider` | Real (cuando se configura env) |
-| `MockModelProvider` | Real (default, fallback determinista) |
-| `build_router()` selection | Real (env-driven) |
-| Server-side Vane system prompt | Real (injects `MessageInput(role="system")`) |
-| `/v1/runtime/status` | Real (safe diagnostics) |
-| CORS | Real (dev origin) |
-| `conversation_id` per session | Real (UUID + sessionStorage) |
-| Chat response rendering | Real (browser E2E verified) |
-| Error state | Real (graceful fallback on API down) |
-
-## Exact commands executed + results
-
-```bash
-# Backend
-cd apps/api && python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-.venv/bin/ruff check .          # → All checks passed!
-.venv/bin/ruff format --check . # → 13 files already formatted
-.venv/bin/pytest tests/ -q      # → 26 passed
-
-# Frontend
-pnpm install
-pnpm --dir apps/web lint        # → ✔ No ESLint warnings or errors
-pnpm --dir apps/web build       # → ○ (Static) prerendered
-
-# API smoke
-curl localhost:8000/v1/runtime/status
-# → {"provider":"mock","model":"mock-companion-v1","configured":false,"mode":"mock",...}
-
-curl -X POST localhost:8000/v1/chat -H "Content-Type: application/json" \
-  -d '{"message":"hola vane","character_id":"vane"}'
-# → provider: mock, content: "Te leo. Soy la anfitriona de prueba...", validation.is_valid: true
+```text
+COMPANION_MODEL_PROVIDER=mock|openai
+COMPANION_MODEL_BASE_URL=
+COMPANION_MODEL_API_KEY=
+COMPANION_MODEL_NAME=companion-chat-v1
+COMPANION_MODEL_TIMEOUT_SECONDS=5.0
+COMPANION_MODEL_MAX_RETRIES=1
+COMPANION_CORS_ORIGINS=http://localhost:3000
 ```
 
-## Browser E2E evidence
+Comportamiento:
 
-Servicios: FastAPI en :8000, Next.js en :3000. Browser: agent-browser.
+- `mock` -> `MockModelProvider`.
+- `openai` + base URL + API key -> `OpenAICompatibleProvider`.
+- `openai` sin credenciales -> fallback local a mock.
+- API keys nunca salen del backend.
+- `.env.example` contiene placeholders solamente.
 
-1. **Home** ✅ — renderiza, sin errores de consola.
-2. **Onboarding** ✅ — click "Conocer a Vane" → 5 decisiones completadas.
-3. **Chat view** ✅ — header muestra dinámicamente `provider: mock · mock`
-   (fetcheado de `/v1/runtime/status`).
-4. **Send message** ✅ — input "Hola Vane, contame algo" → click Enviar.
-5. **Response rendered** ✅ — bubble: "Te leo. Soy la anfitriona de prueba
-   y recibí: "Hola Vane, contame algo" ¿Seguimos desde ahí?"
-6. **Dev validation** ✅ — "Desarrollo: validación de salida OK".
-7. **Error state** ✅ — API detenida → send → bubble "No pude responder
-   ahora. ¿Probamos de nuevo?" + "Error: Failed to fetch".
-8. **Mobile** ✅ — viewport 390×844: hero + heading + button renderizan.
-9. **CORS** ✅ — sin errores CORS en consola del browser.
-10. **Console errors** ✅ — ninguna en todo el flujo.
+## Server-owned Vane
 
-## Runtime status behavior
+`app/domain/companions.py` es la fuente server-side del system prompt canónico de Vane.
 
-`GET /v1/runtime/status` retorna solo campos seguros:
+`/v1/chat` resuelve `character_id="vane"` y prepende un `MessageInput(role="system")` antes del mensaje del usuario.
+
+El cliente no puede enviar un arbitrary system prompt.
+
+La personalidad mantiene la dirección SPECT: adulta, caótica, espontánea, divertida, creativa, curiosa, afectuosa sin sumisión automática, sensual no explícita, transparente sobre ser una companion IA cuando se le pregunta directamente.
+
+## Typed provider errors
+
+Archivo: `app/domain/providers/errors.py`.
+
+Jerarquía relevante:
+
+```text
+ProviderError
+├── ProviderRetryableError
+│   ├── ProviderTimeoutError
+│   ├── ProviderConnectError
+│   ├── ProviderRateLimitError
+│   ├── ProviderServerError
+│   └── ProviderInvalidResponseError
+└── ProviderNonRetryableError
+    ├── ProviderAuthError
+    └── ProviderRequestError
+```
+
+Los errores llevan solamente `code` + `safe_message` controlados. No contienen raw upstream body, API key, Authorization header, provider URL sensible ni stack interno.
+
+## Retry semantics
+
+`ModelRouter` aplica `COMPANION_MODEL_MAX_RETRIES` realmente sobre fallas de provider.
+
+### Retryable
+
+- timeout
+- connection / request transport failure
+- upstream HTTP 429
+- upstream HTTP 5xx
+- malformed JSON
+- non-dict upstream JSON
+- empty / invalid `choices`
+- missing/invalid `message.content`
+- defensive unknown provider exception
+
+### Non-retryable
+
+- upstream HTTP 401
+- upstream HTTP 403
+- other upstream 4xx request/config failures
+
+Upstream 401/403 nunca se exponen al browser como user-auth 401/403.
+
+### Recovery example
+
+Con `max_retries=1`:
+
+```text
+attempt 0 -> provider 429
+attempt 1 -> provider 200 valid content
+result    -> real assistant content, retry_count=1
+```
+
+El mismo patrón está testeado para upstream 5xx -> 200.
+
+## HTTP mapping
+
+Provider/runtime failure agotada se expresa como error HTTP, no como fake success.
+
+| Failure | HTTP | Safe code |
+|---|---:|---|
+| timeout exhausted | 504 | `provider_timeout` |
+| connect/network exhausted | 503 | `provider_connect_failed` |
+| upstream 429 exhausted | 503 | `provider_rate_limited` |
+| upstream 5xx exhausted | 503 | `provider_server_error` |
+| upstream 401/403 | 503 | `provider_config_error` |
+| other upstream 4xx | 503 | `provider_config_error` |
+| malformed/invalid upstream response exhausted | 502 | `provider_invalid_response` |
+| unknown retryable provider failure exhausted | 503 | `provider_unavailable` |
+
+Response shape:
+
+```json
+{
+  "detail": {
+    "code": "provider_connect_failed",
+    "message": "Model provider temporarily unavailable."
+  }
+}
+```
+
+No raw provider error data se devuelve al browser.
+
+## Safe fallback policy
+
+`SAFE_FALLBACK_CONTENT` sigue existiendo:
+
+```text
+No pude responder con seguridad esta vez. Probemos de nuevo.
+```
+
+Se usa únicamente cuando el provider respondió con contenido y `OutputValidator` lo rechaza durante todo el retry budget.
+
+No se usa para ocultar:
+
+- timeout
+- network failure
+- provider outage
+- rate limit
+- provider auth/config failure
+- malformed upstream protocol
+
+## Runtime status
+
+`GET /v1/runtime/status` devuelve información segura:
 
 ```json
 {
@@ -188,95 +188,130 @@ Servicios: FastAPI en :8000, Next.js en :3000. Browser: agent-browser.
 }
 ```
 
-Con `COMPANION_MODEL_PROVIDER=openai` + credenciales:
-```json
-{
-  "provider": "openai-compatible",
-  "model": "companion-chat-v1",
-  "configured": true,
-  "mode": "real",
-  "timeout_seconds": 5.0,
-  "max_retries": 1
-}
-```
+Con provider real configurado, `mode` pasa a `real`.
 
-**Nunca** retorna: `api_key`, `authorization`, URL completa, stack.
+Nunca devuelve API key, Authorization, secretos, stack ni URL sensible.
 
-## Timeout / retry behavior
+## Browser session id
 
-- `ModelRouter.timeout_seconds` (default 5.0, override via env).
-- `ModelRouter.max_retries` (default 1, override via env).
-- El router envuelve `provider.generate()` en `asyncio.wait_for(timeout)`.
-- Timeout → retry; tras agotar retries → `RuntimeError("model_provider_timeout")`.
-- El handler atrapa `RuntimeError` → `ModelResponse` seguro (no 500).
-- El adapter tiene su propio `httpx` timeout (mismo valor); atrapa
-  `httpx.TimeoutException` internamente → `ModelResponse` seguro.
+Frontend: `apps/web/lib/session.ts`.
 
-## Error mapping
+- UUID por browser tab/session.
+- guardado en `sessionStorage`.
+- refresh mantiene la misma sesión.
+- otra tab obtiene otra sesión.
+- no se presenta como persistent memory.
 
-| Provider failure | Result |
-|---|---|
-| httpx timeout | safe `ModelResponse` (adapter catches) |
-| HTTP 401/403 | safe `ModelResponse` (adapter catches) |
-| HTTP 429 | safe `ModelResponse` (adapter catches) |
-| HTTP 5xx | safe `ModelResponse` (adapter catches) |
-| Malformed JSON | safe `ModelResponse` (adapter catches) |
-| Empty `choices` | safe `ModelResponse` (adapter catches) |
-| Connect error | safe `ModelResponse` (adapter catches) |
-| Router timeout after retries | handler catches `RuntimeError` → safe response |
+## Browser E2E verificado por GLM antes del handoff del auditor fix
 
-En ningún caso se filtra stack trace o secreto.
+Normal path:
+
+1. home render
+2. onboarding 5/5
+3. chat open
+4. send message
+5. Next.js -> FastAPI `/v1/chat`
+6. response rendered in bubble
+7. validation OK visible in dev
+8. no CORS/page errors
+9. mobile viewport OK
+
+Error paths:
+
+- API down -> graceful UI error.
+- Broken configured provider -> FastAPI 503 + safe error body -> frontend `res.ok=false` -> graceful chat error state.
+
+## Automated tests
+
+CI on PR #4 after the auditor fix is green for both `api` and `web`.
+
+Backend coverage includes:
+
+- typed adapter classification for 401/403/429/5xx/timeouts/connect errors
+- malformed/empty/invalid upstream responses
+- API key stays in Authorization header, not payload
+- 429 -> retry -> 200 recovery with `retry_count=1`
+- 5xx -> retry -> 200 recovery with `retry_count=1`
+- timeout exhaustion -> HTTP 504
+- connection exhaustion -> HTTP 503
+- auth/config errors -> no retry, HTTP 503
+- invalid upstream response -> bounded retry, HTTP 502
+- final OutputValidator rejection -> safe content fallback HTTP 200
+- error bodies contain no secret/header/stack/upstream URL material
+
+Frontend CI covers install, lint and build.
+
+## Changed runtime files
+
+Backend:
+
+- `apps/api/app/domain/providers/errors.py`
+- `apps/api/app/domain/providers/openai_compatible.py`
+- `apps/api/app/domain/router.py`
+- `apps/api/app/main.py`
+- `apps/api/app/domain/companions.py`
+- `apps/api/tests/test_openai_provider.py`
+- `apps/api/tests/test_provider_errors.py`
+- `apps/api/tests/test_runtime.py`
+- `apps/api/pyproject.toml`
+
+Frontend:
+
+- `apps/web/lib/session.ts`
+- `apps/web/lib/api.ts`
+- `apps/web/components/ChatPanel.tsx`
+- `apps/web/lib/companion.ts`
+
+Docs/config:
+
+- `.env.example`
+- `docs/adr/0006-openai-compatible-provider.md`
+- `docs/HANDOFF_RUNTIME_PROVIDER_V1.md`
 
 ## Secrets verification
 
-```bash
-# No .env tracked
-git ls-files | grep -E "\.env$"   # → (empty)
+Tracked source must contain:
 
-# No API keys in tracked files
-git grep -iE "sk-[a-z0-9]{20}|api_key.*=.*['\"][a-z0-9]{20}" -- '.env.example' ':!tests'
-# → (no real keys; .env.example has empty COMPANION_MODEL_API_KEY=)
+- no `.env`
+- no real model API key
+- no private visual originals
+- no GitHub PAT
 
-# Runtime status doesn't leak keys (verified by test_runtime_status_no_secret_leak_for_openai)
-```
+Tests may use obviously fake sentinel strings only to verify they do not leak.
 
 ## Known limitations
 
-1. **Chat es mock por defecto.** Para chat real LLM, setear
-   `COMPANION_MODEL_PROVIDER=openai` + `BASE_URL` + `API_KEY` + `MODEL_NAME`.
-2. **Sin memoria persistente.** `conversation_id` es por sesión de browser
-   (sessionStorage); no sobrevive cierre de tab. No es memoria entre sesiones.
-3. **El mock se identifica como "anfitriona"** sin importar `character_id` —
-   el `MockModelProvider` ignora el system prompt. Un provider real sí lo
-   usará. Corregible con un cambio mínimo al mock o con provider real.
-4. **Sin multi-turno en el backend.** `/v1/chat` recibe un solo `message`;
-   el router no mantiene historial. Multi-turno real requiere extensión del
-   contract o estado de conversación server-side (futuro).
-5. **Una sola companion (Vane).** No hay marketplace ni múltiples characters
-   (per SPECT §4 y Issue #3 #10).
+1. Runtime defaults to mock until a real OpenAI-compatible endpoint is configured.
+2. No persistent memory yet.
+3. `/v1/chat` remains single-turn at the backend contract level.
+4. Mock provider still uses its generic host-style canned reply.
+5. No auth, payment, TTS, image/video generation or marketplace in this milestone.
+6. No VPS deployment in this milestone.
 
 ## Recommended next staging milestone
 
-1. **Multi-turno server-side**: extender `ChatRequest` con `messages: list[MessageInput]`
-   opcional, o mantener estado de conversación en backend (con `conversation_id`).
-2. **Memoria persistente**: implementar las capas de memoria de SPECT §6.4
-   (profile/character/temporal) sobre PostgreSQL.
-3. **Provider real con LLM**: configurar `COMPANION_MODEL_*` con un endpoint
-   OpenAI-compatible real y validar respuestas en personaje de Vane.
-4. **Auth + rate limiting**: antes de producción.
-5. **Observabilidad**: logging estructurado + métricas de provider latency/errores.
+After PR #4 is merged:
+
+1. configure one real provider in a controlled staging runtime;
+2. exercise Vane character quality against real responses;
+3. add structured provider observability and basic rate limiting;
+4. then prepare persistent conversation/history and memory architecture;
+5. deploy staging only when the runtime provider path is actually being exercised outside local/CI.
 
 ## Issue #3 compliance
 
-| Criterio | Cumplido |
+| Criterion | Status |
 |---|---|
 | FastAPI canonical backend | ✅ |
-| MockModelProvider default fallback | ✅ |
-| Real provider behind Protocol | ✅ `OpenAICompatibleProvider` |
-| No client-side API keys | ✅ |
-| No paid model in tests | ✅ `httpx.MockTransport` |
-| Server-owned Vane system prompt | ✅ |
-| Browser send flow verified + CORS | ✅ |
-| Per-browser-session conversation_id | ✅ |
-| Safe runtime diagnostics | ✅ `/v1/runtime/status` |
-| Preserve cyber-noir UI / one companion | ✅ |
+| Mock fallback | ✅ |
+| Real provider behind Protocol | ✅ |
+| Server-side secrets only | ✅ |
+| No paid model in tests | ✅ |
+| Server-owned Vane context | ✅ |
+| Browser send flow | ✅ |
+| Per-session conversation id | ✅ |
+| Safe runtime diagnostics | ✅ |
+| Typed provider errors | ✅ |
+| Real bounded retry semantics | ✅ |
+| Safe 5xx mappings | ✅ |
+| No scope creep | ✅ |
