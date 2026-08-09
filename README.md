@@ -29,7 +29,8 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - conversación multi-turn y memorias explícitas acotadas en proceso;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
-- Caddy como entrada única para web y `/api/*`.
+- Caddy como entrada única para web y `/api/*`;
+- primer despliegue HTTP por IP validado en el VPS.
 
 ### Todavía no implementado
 
@@ -40,7 +41,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - entitlements, créditos y pagos;
 - entrega autorizada de media premium;
 - Cloud Lab conectado al producto;
-- despliegue de producción validado.
+- dominio de producción y TLS validados.
 
 Un reinicio de la API borra conversación y memoria actuales. El `user_id` es un scope de prototipo, no una identidad segura.
 
@@ -78,8 +79,7 @@ El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no 
 
 ## Próximo objetivo
 
-1. validar imágenes y Compose en el VPS;
-2. asegurar SSH, firewall y directorio de despliegue;
-3. publicar por IP y ejecutar smoke tests reales;
-4. configurar DNS y activar TLS;
-5. avanzar luego con auth, persistencia y media privada.
+1. configurar DNS y activar TLS;
+2. repetir smoke tests por HTTPS;
+3. definir observabilidad y restauración mínima;
+4. avanzar luego con auth, persistencia y media privada.

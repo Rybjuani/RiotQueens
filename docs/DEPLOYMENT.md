@@ -10,8 +10,13 @@
 - UFW activo: entrada denegada por defecto y solo `22/tcp`, `80/tcp`, `443/tcp` y `443/udp` permitidos;
 - Docker `29.1.3` y Compose `2.40.3` activos;
 - `docker compose config` y los builds de `api` y `web` completados en el VPS;
+- release `570ed7e` activa desde `/opt/riotqueens/releases/570ed7e`;
+- `api` y `web` saludables; Caddy publica HTTP en `148.113.167.121`;
+- smoke tests externos superados para `/`, `/legal`, `/privacy`, `/api/health`, `/api/v1/runtime/status` y `/api/v1/chat`;
+- el logo entregado por HTTP conserva el SHA-256 oficial;
+- `/.env` y `/.ssh/authorized_keys` responden `404` y no se detectaron errores recientes en los logs;
 - no hay registro `A`/`AAAA` resolviendo para `riotqueens.ai` ni `www.riotqueens.ai`;
-- la release candidata todavía no se publicó en los puertos públicos.
+- HTTPS queda pendiente hasta que el dominio resuelva al VPS.
 
 ## Contrato
 

@@ -249,6 +249,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - frontend lint/build, backend lint/tests y QA responsive local superados;
 - routing de lanzamiento documentado en ADR 0001;
 - VPS activo y accesible por clave SSH;
+- SSH endurecido, UFW activo y runtime Docker instalado;
+- release `570ed7e` desplegada y smoke tests HTTP por IP superados;
 - base frontend/backend y pruebas existentes recuperadas;
 - manifiestos visuales y parte de la documentación histórica localizados.
 
@@ -258,8 +260,6 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - definir storage/CDN y autorización de media;
 - cerrar pricing y economía de créditos;
 - consolidar taxonomía y masters visuales;
-- validar imágenes Docker y Compose en el VPS;
-- asegurar SSH y configurar firewall mínimo;
 - configurar el registro DNS y emitir TLS;
 - definir observabilidad y restauración mínima;
-- ejecutar smoke test real del primer deploy.
+- repetir smoke tests sobre el dominio por HTTPS.
