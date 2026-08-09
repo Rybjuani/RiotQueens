@@ -19,7 +19,7 @@ Hard scope rules (Issue #5 + auditor fix PR #6)
 4. Concurrent requests MUST NOT corrupt the list/order. The in-process
    implementation uses an `asyncio.Lock` per scope key.
 5. There is a configurable bound on memories per scope
-   (`COMPANION_MEMORY_MAX_PER_SCOPE`) so a single scope cannot grow
+   (`RIOTQUEENS_MEMORY_MAX_PER_SCOPE`) so a single scope cannot grow
    without limit. When the bound is exceeded the oldest memory is
    evicted (FIFO).
 6. Memory content is client-supplied UNTRUSTED DATA. When injected into

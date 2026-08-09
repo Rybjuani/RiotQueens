@@ -11,7 +11,7 @@ provider receives. It composes the request in this STRICT order:
     3. Bounded conversation history (`conversations.get_history`)
        — prior user + assistant turns, scoped by
        (user_id, character_id, conversation_id). Bound by
-       `COMPANION_CONVERSATION_MAX_TURNS` (complete pairs only).
+       `RIOTQUEENS_CONVERSATION_MAX_TURNS` (complete pairs only).
     4. Current user message (`ChatRequest.message`).
 
 The frontend NEVER sends a system prompt, never sends trusted prior

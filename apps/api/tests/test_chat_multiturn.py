@@ -87,9 +87,9 @@ def fresh_app(monkeypatch: pytest.MonkeyPatch):
     CapturingMockProvider so we can assert on the exact messages list
     the provider saw.
     """
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "8")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "8")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -378,13 +378,13 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
 
 @pytest.mark.asyncio
 async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With COMPANION_CONVERSATION_MAX_TURNS=2, after sending 5 messages
+    """With RIOTQUEENS_CONVERSATION_MAX_TURNS=2, after sending 5 messages
     the provider should only receive the last 2 complete pairs + the
     current user message.
     """
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "2")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "2")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 

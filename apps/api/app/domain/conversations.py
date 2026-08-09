@@ -17,7 +17,7 @@ Hard scope rules (Issue #5 + auditor fix PR #6)
    stored as an assistant turn. Provider failures (timeout, 429, 5xx,
    auth/config, connect, malformed, empty) MUST NOT append a fake turn.
 4. History is bounded deterministically by `max_turns`
-   (`COMPANION_CONVERSATION_MAX_TURNS`). The bound is applied to complete
+   (`RIOTQUEENS_CONVERSATION_MAX_TURNS`). The bound is applied to complete
    user/assistant pairs; truncation never leaves a half-pair. The bound
    is applied to the STORED RECORD itself (not just the provider context)
    so in-process state cannot grow without limit.

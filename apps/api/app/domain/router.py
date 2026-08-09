@@ -27,7 +27,7 @@ class ModelProvider(Protocol):
 
 class MockModelProvider:
     name = "mock"
-    model = "mock-companion-v1"
+    model = "mock-riotqueens-v1"
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         prompt = request.messages[-1].content
@@ -156,14 +156,14 @@ def _env_int(name: str, default: int) -> int:
 
 def build_router() -> ModelRouter:
     """Construct the canonical ModelRouter from server-side env vars."""
-    provider_kind = _env("COMPANION_MODEL_PROVIDER", "mock").strip().lower()
-    timeout = _env_float("COMPANION_MODEL_TIMEOUT_SECONDS", 5.0)
-    retries = _env_int("COMPANION_MODEL_MAX_RETRIES", 1)
+    provider_kind = _env("RIOTQUEENS_MODEL_PROVIDER", "mock").strip().lower()
+    timeout = _env_float("RIOTQUEENS_MODEL_TIMEOUT_SECONDS", 5.0)
+    retries = _env_int("RIOTQUEENS_MODEL_MAX_RETRIES", 1)
 
     if provider_kind == "openai":
-        base_url = _env("COMPANION_MODEL_BASE_URL")
-        api_key = _env("COMPANION_MODEL_API_KEY")
-        model_name = _env("COMPANION_MODEL_NAME", "companion-chat-v1")
+        base_url = _env("RIOTQUEENS_MODEL_BASE_URL")
+        api_key = _env("RIOTQUEENS_MODEL_API_KEY")
+        model_name = _env("RIOTQUEENS_MODEL_NAME", "riotqueens-chat-v1")
         if base_url and api_key:
             from app.domain.providers.openai_compatible import OpenAICompatibleProvider
 
@@ -175,10 +175,10 @@ def build_router() -> ModelRouter:
             )
             providers: Mapping[Route, ModelProvider] = {route: adapter for route in Route}
             fallback_providers: Mapping[Route, Sequence[ModelProvider]] = {}
-            fallback_kind = _env("COMPANION_FALLBACK_MODEL_PROVIDER").strip().lower()
-            fallback_base_url = _env("COMPANION_FALLBACK_MODEL_BASE_URL")
-            fallback_api_key = _env("COMPANION_FALLBACK_MODEL_API_KEY")
-            fallback_model = _env("COMPANION_FALLBACK_MODEL_NAME")
+            fallback_kind = _env("RIOTQUEENS_FALLBACK_MODEL_PROVIDER").strip().lower()
+            fallback_base_url = _env("RIOTQUEENS_FALLBACK_MODEL_BASE_URL")
+            fallback_api_key = _env("RIOTQUEENS_FALLBACK_MODEL_API_KEY")
+            fallback_model = _env("RIOTQUEENS_FALLBACK_MODEL_NAME")
             if (
                 fallback_kind == "openai"
                 and fallback_base_url

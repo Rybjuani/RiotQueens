@@ -44,7 +44,7 @@ from .domain.router import build_router, runtime_status
 
 app = FastAPI(title="RiotQueens API", version="0.4.0")
 
-_cors_env = os.environ.get("COMPANION_CORS_ORIGINS", "http://localhost:3000")
+_cors_env = os.environ.get("RIOTQUEENS_CORS_ORIGINS", "http://localhost:3000")
 _cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
@@ -80,8 +80,8 @@ def _env_int_optional(name: str, default: int) -> int:
 # implementations without touching the chat handler, the router, or
 # the API surface.
 
-_CONVERSATION_MAX_TURNS = _env_int_optional("COMPANION_CONVERSATION_MAX_TURNS", 8)
-_MEMORY_MAX_PER_SCOPE = _env_int_optional("COMPANION_MEMORY_MAX_PER_SCOPE", 32)
+_CONVERSATION_MAX_TURNS = _env_int_optional("RIOTQUEENS_CONVERSATION_MAX_TURNS", 8)
+_MEMORY_MAX_PER_SCOPE = _env_int_optional("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", 32)
 
 conversation_store = InProcessConversationStore(max_turns=_CONVERSATION_MAX_TURNS)
 memory_store = InProcessMemoryStore(max_per_scope=_MEMORY_MAX_PER_SCOPE)
@@ -395,7 +395,7 @@ async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
     `content` is stored verbatim as a fact and injected as a separate
     server-owned memory section in the model request.
 
-    If the scope exceeds `COMPANION_MEMORY_MAX_PER_SCOPE`, the oldest
+    If the scope exceeds `RIOTQUEENS_MEMORY_MAX_PER_SCOPE`, the oldest
     memory is evicted (FIFO).
     """
     scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)

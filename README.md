@@ -82,7 +82,7 @@ make test
 
 El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no se levantan todavía porque el dominio no tiene adaptadores que los consuman. El proveedor por defecto es `mock`: no se debe presentar esa respuesta como calidad conversacional final.
 
-Gemini u otro primario se configura con `COMPANION_MODEL_*`. Un segundo proveedor OpenAI-compatible puede registrarse con `COMPANION_FALLBACK_MODEL_*`; ninguna clave se expone al frontend.
+El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback independiente de Hugging Face se registra con `RIOTQUEENS_FALLBACK_MODEL_*`; ninguna clave se expone al frontend.
 
 ## Próximo objetivo
 

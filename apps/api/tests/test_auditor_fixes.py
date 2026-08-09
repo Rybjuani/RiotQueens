@@ -86,9 +86,9 @@ class DelayedCapturingMockProvider:
 @pytest.fixture()
 def fresh_app(monkeypatch: pytest.MonkeyPatch):
     """Force-reload app.main with a fresh CapturingMockProvider wired in."""
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "8")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "8")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -130,9 +130,9 @@ async def test_forced_overlap_same_scope_serializes_as_complete_pairs() -> None:
     released, B proceeds and appends user B + assistant B.
     """
     monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "8")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "8")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -230,9 +230,9 @@ async def test_different_scopes_run_in_parallel_under_transaction_lock() -> None
     A slow provider in one conversation does NOT block another.
     """
     monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "8")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "8")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -384,9 +384,9 @@ async def test_get_conversation_returns_bounded_state_honestly() -> None:
     must show only the last 2 pairs.
     """
     monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "2")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "2")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 

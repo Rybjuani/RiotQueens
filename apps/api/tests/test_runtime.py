@@ -20,7 +20,7 @@ from app.domain.router import MockModelProvider, build_router, runtime_status
 @pytest.fixture()
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     # Force mock provider for handler tests (no real network).
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
     # Re-import main so the module-level router picks up the env.
     import importlib
 
@@ -87,7 +87,7 @@ def test_health_endpoint(client: TestClient) -> None:
 
 
 def test_build_router_defaults_to_mock(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("COMPANION_MODEL_PROVIDER", raising=False)
+    monkeypatch.delenv("RIOTQUEENS_MODEL_PROVIDER", raising=False)
     rt = build_router()
     sample = rt.providers[Route.FAST_CHAT]
     assert isinstance(sample, MockModelProvider)
@@ -96,13 +96,29 @@ def test_build_router_defaults_to_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     assert status["configured"] is False
 
 
+def test_legacy_companion_env_is_not_an_active_runtime_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RIOTQUEENS_MODEL_PROVIDER", raising=False)
+    monkeypatch.delenv("RIOTQUEENS_MODEL_BASE_URL", raising=False)
+    monkeypatch.delenv("RIOTQUEENS_MODEL_API_KEY", raising=False)
+    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("COMPANION_MODEL_BASE_URL", "https://legacy.example.com/v1")
+    monkeypatch.setenv("COMPANION_MODEL_API_KEY", "legacy-secret")
+
+    rt = build_router()
+
+    assert isinstance(rt.providers[Route.FAST_CHAT], MockModelProvider)
+    assert runtime_status(rt)["configured"] is False
+
+
 def test_build_router_openai_without_credentials_falls_back_to_mock(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """provider=openai but no base_url/api_key → mock fallback (Issue #3 #2)."""
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
-    monkeypatch.delenv("COMPANION_MODEL_BASE_URL", raising=False)
-    monkeypatch.delenv("COMPANION_MODEL_API_KEY", raising=False)
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
+    monkeypatch.delenv("RIOTQUEENS_MODEL_BASE_URL", raising=False)
+    monkeypatch.delenv("RIOTQUEENS_MODEL_API_KEY", raising=False)
     rt = build_router()
     sample = rt.providers[Route.FAST_CHAT]
     assert isinstance(sample, MockModelProvider)
@@ -111,14 +127,14 @@ def test_build_router_openai_without_credentials_falls_back_to_mock(
 def test_build_router_openai_with_credentials_wires_adapter(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
-    monkeypatch.setenv("COMPANION_MODEL_BASE_URL", "https://api.example.com/v1")
-    monkeypatch.setenv("COMPANION_MODEL_API_KEY", "sk-test-fake")
-    monkeypatch.setenv("COMPANION_MODEL_NAME", "companion-chat-v1")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_API_KEY", "sk-test-fake")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_NAME", "riotqueens-chat-v1")
     rt = build_router()
     sample = rt.providers[Route.FAST_CHAT]
     assert sample.name == "openai-compatible"
-    assert sample.model == "companion-chat-v1"
+    assert sample.model == "riotqueens-chat-v1"
     status = runtime_status(rt)
     assert status["mode"] == "real"
     assert status["configured"] is True
@@ -128,9 +144,9 @@ def test_build_router_openai_with_credentials_wires_adapter(
 
 
 def test_runtime_status_no_secret_leak_for_openai(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
-    monkeypatch.setenv("COMPANION_MODEL_BASE_URL", "https://api.example.com/v1")
-    monkeypatch.setenv("COMPANION_MODEL_API_KEY", "sk-super-secret-do-not-leak")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_API_KEY", "sk-super-secret-do-not-leak")
     rt = build_router()
     status = runtime_status(rt)
     status_str = str(status)
@@ -141,14 +157,14 @@ def test_runtime_status_no_secret_leak_for_openai(monkeypatch: pytest.MonkeyPatc
 def test_build_router_wires_sanitized_fallback_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
-    monkeypatch.setenv("COMPANION_MODEL_BASE_URL", "https://primary.example.com/v1")
-    monkeypatch.setenv("COMPANION_MODEL_API_KEY", "primary-secret")
-    monkeypatch.setenv("COMPANION_MODEL_NAME", "gemini-primary")
-    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_PROVIDER", "openai")
-    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_BASE_URL", "https://fallback.example.com/v1")
-    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_API_KEY", "fallback-secret")
-    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_NAME", "llama-fallback")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_BASE_URL", "https://primary.example.com/v1")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_API_KEY", "primary-secret")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_NAME", "gemini-primary")
+    monkeypatch.setenv("RIOTQUEENS_FALLBACK_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("RIOTQUEENS_FALLBACK_MODEL_BASE_URL", "https://fallback.example.com/v1")
+    monkeypatch.setenv("RIOTQUEENS_FALLBACK_MODEL_API_KEY", "fallback-secret")
+    monkeypatch.setenv("RIOTQUEENS_FALLBACK_MODEL_NAME", "llama-fallback")
 
     rt = build_router()
     status = runtime_status(rt)
