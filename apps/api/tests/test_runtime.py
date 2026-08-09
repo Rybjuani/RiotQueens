@@ -78,7 +78,7 @@ def test_health_endpoint(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "ok"
-    assert data["service"] == "companion-studio-api"
+    assert data["service"] == "riotqueens-api"
 
 
 # ---------------------------------------------------------------------- #

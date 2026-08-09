@@ -1,6 +1,6 @@
 """Server-side explicit user-fact memory store (in-process prototype).
 
-This module owns the in-process memory state for Companion Studio. It is
+This module owns the in-process memory state for RiotQueens. It is
 intentionally NOT a long-term memory engine: there are no embeddings,
 no vector DB, no semantic retrieval, no automatic LLM extraction, no
 background summarizer. It only stores EXPLICIT user facts the client
@@ -266,7 +266,7 @@ def memory_context_section(memories: Sequence[MemoryRecord]) -> str | None:
     if there are no memories.
 
     The section is prepended as a SEPARATE system-owned block — never
-    mixed into the canonical Vane system prompt.
+    mixed into the canonical Queen system prompt.
 
     Prompt-injection authority boundary (auditor fix PR #6 blocker 3):
         - The wrapper text is server-authored, FIXED Spanish. It is

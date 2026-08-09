@@ -1,23 +1,68 @@
+name: riotqueens
+
 services:
   api:
-    build: ./apps/api
+    build:
+      context: ./apps/api
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://companion:companion@postgres:5432/companion
-      REDIS_URL: redis://redis:6379/0
-    ports: ["8000:8000"]
+      PORT: "8000"
+      COMPANION_MODEL_PROVIDER: ${COMPANION_MODEL_PROVIDER:-mock}
+      COMPANION_MODEL_BASE_URL: ${COMPANION_MODEL_BASE_URL:-}
+      COMPANION_MODEL_API_KEY: ${COMPANION_MODEL_API_KEY:-}
+      COMPANION_MODEL_NAME: ${COMPANION_MODEL_NAME:-riotqueens-chat-v1}
+      COMPANION_MODEL_TIMEOUT_SECONDS: ${COMPANION_MODEL_TIMEOUT_SECONDS:-5.0}
+      COMPANION_MODEL_MAX_RETRIES: ${COMPANION_MODEL_MAX_RETRIES:-1}
+      COMPANION_CORS_ORIGINS: ${COMPANION_CORS_ORIGINS:-http://localhost}
+      COMPANION_CONVERSATION_MAX_TURNS: ${COMPANION_CONVERSATION_MAX_TURNS:-8}
+      COMPANION_MEMORY_MAX_PER_SCOPE: ${COMPANION_MEMORY_MAX_PER_SCOPE:-32}
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 10s
+
   web:
-    build: ./apps/web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+    restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    ports: ["3000:3000"]
-    depends_on: [api]
-  postgres:
-    image: postgres:16-alpine
+      PORT: "3000"
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 4s
+      retries: 5
+      start_period: 15s
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: companion
-      POSTGRES_PASSWORD: companion
-      POSTGRES_DB: companion
-    ports: ["5432:5432"]
-  redis:
-    image: redis:7-alpine
-    ports: ["6379:6379"]
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  caddy_data:
+  caddy_config:

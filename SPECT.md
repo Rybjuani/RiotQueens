@@ -24,7 +24,15 @@ Huellas verificadas de las copias locales designadas como canon:
 | `Riotqueens-Ai-Landing-Mock.html` | `5307742d62016fe0f3691ccaf1b57955e3dffe105dcf0c773da53531fb68750e` |
 | `Reiniciando-chat-anterior.html` | `246ce2e0d893f793e8effd268c2a5a00d29b7dc385f071e422bdb25d4bcdc68b` |
 
-Estas copias aún no forman parte del repositorio. Su importación requiere revisar assets, licencias, datos embebidos y peso antes de versionarlas.
+Los HTML crudos permanecen fuera del repositorio porque contienen bundles, datos embebidos y lenguaje histórico no publicable. Sus composiciones y contratos de interacción fueron auditados y trasladados al frontend Next.js; las huellas se conservan para comprobar fidelidad sin convertir los snapshots en runtime.
+
+Logo oficial bloqueado:
+
+| Archivo fuente | Copia web | SHA-256 |
+|---|---|---|
+| `RiotQueens_logo_design_202608082344.jpeg` | `apps/web/public/brand/riotqueens-logo.jpeg` | `e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1` |
+
+La copia web es idéntica byte por byte. No se redibuja, reinterpreta ni reemplaza sin decisión expresa del owner.
 
 Orden de autoridad restante:
 
@@ -155,15 +163,20 @@ Nada premium viaja al navegador antes de que el backend valide autorización. Lo
 ### Estado verificado del código actual
 
 - existen web Next.js y API FastAPI;
+- el frontend porta la composición visual del primer landing y el flujo interactivo del segundo;
+- `bardera` es el personaje canónico del lanzamiento y `vane` permanece como alias transitorio de compatibilidad;
 - existe abstracción de proveedor y adaptador OpenAI-compatible;
 - existen conversación multi-turn y memorias explícitas en proceso;
 - existen locks por scope, errores tipados, retries y pruebas;
-- PostgreSQL y Redis aparecen en Compose pero todavía no sostienen el dominio;
+- PostgreSQL y Redis son objetivos, pero no se ejecutan hasta que adaptadores reales los consuman;
+- Caddy publica web y API bajo un solo origen y enruta `/api/*` hacia FastAPI;
 - no hay autenticación real;
 - conversación y memoria se pierden al reiniciar el proceso;
 - no hay todavía storage privado, entitlements, créditos ni pagos implementados;
-- los medios actuales son placeholders;
-- el contrato de puertos de Docker/Compose necesita validación antes de desplegar.
+- el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
+- el flujo público, responsive, chat contra API y páginas legales pasaron QA local;
+- las imágenes provisionales no constituyen entrega premium ni sustituyen autorización de media;
+- el build de contenedores y el contrato Compose todavía requieren validación en el VPS.
 
 No presentar capacidades objetivo como si ya estuvieran implementadas.
 
@@ -230,19 +243,23 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 
 - repo remoto y branch arquitectónico recuperados;
 - ambos landings canon identificados y hasheados;
+- composición e interacción de ambos landings trasladadas al frontend funcional;
+- logo oficial bloqueado incorporado como copia byte-idéntica;
+- lenguaje público activo normalizado y páginas legal/privacidad creadas;
+- frontend lint/build, backend lint/tests y QA responsive local superados;
+- routing de lanzamiento documentado en ADR 0001;
 - VPS activo y accesible por clave SSH;
 - base frontend/backend y pruebas existentes recuperadas;
 - manifiestos visuales y parte de la documentación histórica localizados.
 
 ### Pendiente
 
-- auditar e importar las copias canónicas de ambos landings;
-- corregir lenguaje público heredado en código y documentación;
-- definir contrato funcional entre V1, V2 y la aplicación;
 - resolver auth y persistencia durable;
 - definir storage/CDN y autorización de media;
 - cerrar pricing y economía de créditos;
 - consolidar taxonomía y masters visuales;
-- corregir y validar el despliegue Docker;
-- configurar DNS, TLS, firewall y observabilidad;
+- validar imágenes Docker y Compose en el VPS;
+- asegurar SSH y configurar firewall mínimo;
+- configurar el registro DNS y emitir TLS;
+- definir observabilidad y restauración mínima;
 - ejecutar smoke test real del primer deploy.

@@ -1,6 +1,6 @@
 """Server-side conversation history store (in-process prototype).
 
-This module owns the in-process conversation state for Companion Studio.
+This module owns the in-process conversation state for RiotQueens.
 It is intentionally NOT a database; it is a prototype store suitable for
 single-process FastAPI runtimes. The Protocol-based interface
 (`ConversationStore`) is designed so a future PostgreSQL / Redis backend
@@ -11,7 +11,7 @@ Hard scope rules (Issue #5 + auditor fix PR #6)
 1. A conversation is identified by the tuple
    ``(user_id, character_id, conversation_id)``. The store MUST NOT mix
    messages across different users, characters, or conversation ids.
-2. The canonical Vane system prompt is NEVER stored here. It is prepended
+2. The canonical Queen system prompt is NEVER stored here. It is prepended
    to every model request from `app/domain/companions.py` at request time.
 3. Only validated assistant content actually returned to the user may be
    stored as an assistant turn. Provider failures (timeout, 429, 5xx,

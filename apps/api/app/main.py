@@ -41,7 +41,7 @@ from .domain.providers.errors import (
 )
 from .domain.router import build_router, runtime_status
 
-app = FastAPI(title="Companion Studio API", version="0.3.0")
+app = FastAPI(title="RiotQueens API", version="0.4.0")
 
 _cors_env = os.environ.get("COMPANION_CORS_ORIGINS", "http://localhost:3000")
 _cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
@@ -122,7 +122,7 @@ async def provider_error_handler(_request: Request, exc: ProviderError) -> JSONR
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "service": "companion-studio-api"}
+    return {"status": "ok", "service": "riotqueens-api"}
 
 
 @app.get("/v1/runtime/status")
@@ -171,7 +171,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
       2. Appends the user message to the in-process conversation store
          (scoped by user + character + conversation).
       3. Assembles the canonical messages list:
-         system Vane prompt → server-owned memory context → bounded
+         system Queen prompt → server-owned memory context → bounded
          conversation history (which now ends with the trailing user
          message) → defensive current-user append if needed.
       4. Calls the provider via the ModelRouter. On a typed provider
@@ -265,7 +265,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 async def get_conversation(
     conversation_id: str,
     user_id: str = Query(default="demo-user"),
-    character_id: str = Query(default="vane"),
+    character_id: str = Query(default="bardera"),
 ) -> ConversationSummary:
     """Return the stored messages for one conversation scope.
 
@@ -349,7 +349,7 @@ async def delete_conversation(
 @app.get("/v1/memories", response_model=MemoryListResponse)
 async def list_memories(
     user_id: str = Query(default="demo-user"),
-    character_id: str = Query(default="vane"),
+    character_id: str = Query(default="bardera"),
 ) -> MemoryListResponse:
     """List the explicit user-fact memories for one scope.
 

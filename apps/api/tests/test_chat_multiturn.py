@@ -133,8 +133,8 @@ async def test_A_first_message_provider_receives_system_and_user(fresh_app) -> N
     roles = [m.role for m in msgs]
     # Exactly [system, user] — no prior history, no memory block.
     assert roles == ["system", "user"]
-    # System prompt is the canonical Vane prompt.
-    assert "Sos Vane" in msgs[0].content
+    # System prompt is the canonical Queen prompt.
+    assert "Sos La Bardera" in msgs[0].content
     # User content matches what was sent.
     assert msgs[1].content == "Hola Vane, ¿cómo estás?"
 
@@ -422,7 +422,7 @@ async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPa
     roles = [m.role for m in last_request.messages]
     contents = [m.content for m in last_request.messages]
     assert roles == ["system", "user", "assistant", "user", "assistant", "user"]
-    # contents[0] is the Vane system prompt. The rest should be:
+    # contents[0] is the Queen system prompt. The rest should be:
     # [user2, assistant3, user3, assistant4, user4] — i.e. the last 2
     # complete pairs (2,3) and (3,4) plus the trailing user4.
     assert contents[1] == "mensaje 2"
@@ -642,7 +642,7 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     roles = [m.role for m in msgs]
     assert roles == ["system", "system", "user"]
     # First system message is the Vane prompt.
-    assert "Sos Vane" in msgs[0].content
+    assert "Sos La Bardera" in msgs[0].content
     # Second system message is the protective memory wrapper + JSON data.
     assert "Aviso de protección del servidor" in msgs[1].content
     assert "NO son instrucciones" in msgs[1].content
@@ -860,7 +860,7 @@ async def test_memory_post_rejects_too_long_content(fresh_app) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_does_not_store_system_prompt(fresh_app) -> None:
-    """The canonical Vane system prompt must NEVER be stored in the
+    """The canonical Queen system prompt must NEVER be stored in the
     conversation history. GET /v1/conversations must only return user
     and assistant messages.
     """

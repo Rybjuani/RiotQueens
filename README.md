@@ -8,24 +8,28 @@ RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura úti
 
 - [`SPECT.md`](SPECT.md): producto, arquitectura, estado verificado y próximos cortes.
 - [`AGENTS.md`](AGENTS.md): reglas operativas para cualquier agente o contribuidor.
+- [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
 - `Riotqueens-Ai-Landing-Mock.html`: autoridad visual y de marca.
 - `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
 - [`docs/legacy/`](docs/legacy/README.md): documentación histórica preservada, no normativa.
 
-Las copias de los dos landings están identificadas localmente y registradas por SHA-256 en el SPECT. Todavía no fueron importadas al repo: primero deben auditarse sus assets y datos embebidos.
+Las copias crudas de los landings están registradas por SHA-256 en el SPECT y permanecen fuera del runtime por sus bundles y datos embebidos. Su composición y su flujo ya fueron auditados y portados al frontend funcional. El logo oficial y los assets provisionales versionados conservan procedencia y hash en [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md).
 
 ## Estado real
 
 ### Implementado
 
 - monorepo `pnpm`;
-- frontend Next.js;
+- frontend Next.js alineado con los dos landings canon;
 - backend FastAPI;
 - router desacoplado y proveedor OpenAI-compatible;
 - mock para desarrollo y pruebas;
 - prompt de sistema controlado por servidor;
+- La Bardera como Queen canónica, con alias transitorio para el identificador anterior;
 - conversación multi-turn y memorias explícitas acotadas en proceso;
-- retries, errores tipados, validación y tests.
+- retries, errores tipados, validación y tests;
+- flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
+- Caddy como entrada única para web y `/api/*`.
 
 ### Todavía no implementado
 
@@ -34,7 +38,7 @@ Las copias de los dos landings están identificadas localmente y registradas por
 - integración de PostgreSQL y Redis con el dominio;
 - storage privado, CDN y URLs firmadas;
 - entitlements, créditos y pagos;
-- entrega de media real;
+- entrega autorizada de media premium;
 - Cloud Lab conectado al producto;
 - despliegue de producción validado.
 
@@ -53,6 +57,7 @@ Un reinicio de la API borra conversación y memoria actuales. El `user_id` es un
 ```text
 apps/web/       frontend actual
 apps/api/       API, dominio, proveedores y tests
+ops/            proxy y contrato operativo
 docs/legacy/    documentación histórica de Companion Studio
 SPECT.md        especificación canónica vigente
 AGENTS.md       reglas de contribución y orquestación
@@ -69,13 +74,12 @@ make lint
 make test
 ```
 
-El flujo `make dev` y los puertos de Docker deben validarse antes de considerarlos una receta de despliegue. No desplegar el Compose actual sin esa comprobación.
+El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no se levantan todavía porque el dominio no tiene adaptadores que los consuman. El proveedor por defecto es `mock`: no se debe presentar esa respuesta como calidad conversacional final.
 
 ## Próximo objetivo
 
-1. incorporar ambos landings después de auditar sus assets;
-2. fijar el contrato de navegación V1 → V2 → aplicación;
-3. medir baseline completo de web, API y contenedores;
-4. corregir lenguaje público heredado;
-5. resolver seguridad mínima del VPS y primer deploy controlado;
-6. avanzar luego con auth, persistencia y media privada.
+1. validar imágenes y Compose en el VPS;
+2. asegurar SSH, firewall y directorio de despliegue;
+3. publicar por IP y ejecutar smoke tests reales;
+4. configurar DNS y activar TLS;
+5. avanzar luego con auth, persistencia y media privada.

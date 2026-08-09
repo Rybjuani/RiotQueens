@@ -1,50 +1,38 @@
 "use client";
 
-import { vane } from "@/lib/companion";
-
-export function Hero({ onStart }: { onStart: () => void }) {
+export function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => void }) {
   return (
-    <section className="hero">
-      <div className="hero-bg" aria-hidden="true" />
-      <div className="hero-inner">
-        <div>
-          <span className="hero-badge glass">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 2l2.4 7.4H22l-6 4.4 2.3 7.2L12 16.5 5.7 21l2.3-7.2-6-4.4h7.6z" />
-            </svg>
-            Prototipo cyber-noir · Una compañera
-          </span>
-          <h1>
-            Una presencia con <span className="grad">carácter</span>.
-          </h1>
-          <p className="lead">
-            Companion Studio construye una compañera IA adulta con personalidad continua,
-            arquitectura de memoria y presencia audiovisual. No es un catálogo de novias IA:
-            es una sola presencia, profunda y consistente.
-          </p>
-          <div className="hero-actions">
-            <button className="btn-primary" onClick={onStart}>
-              Conocer a Vane
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </button>
-            <a className="btn-ghost" href="#capabilities">
-              Ver capacidades
-            </a>
-          </div>
+    <section className="hero" id="top">
+      <div className="hero-copy">
+        <span className="eyebrow cyan">NO TE CLAVA EL VISTO</span>
+        <h1>
+          NO ES UNA<br />
+          <span className="glitch">GALERÍA.</span><br />
+          <em>ESTÁ AHÍ.</em>
+        </h1>
+        <p className="hero-lead">
+          Habla, recuerda, reacciona y aparece cuando la conversación lo pide.
+          <strong> Queen al frente. Complejidad escondida.</strong>
+        </p>
+        <div className="hero-actions">
+          <button className="button-primary" onClick={onStart}>HABLÁ CON LA BARDERA →</button>
+          <button className="button-ghost" onClick={onHow}>¿CÓMO?</button>
         </div>
-        <div className="hero-portrait-wrap" aria-hidden="true">
-          <div className="hero-portrait-glow" />
-          <div className="hero-portrait">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={vane.portrait} alt="Retrato placeholder de Vane (silueta sintética)" />
-            <div className="hero-portrait-meta">
-              <span className="dot" />
-              <span>Prototipo</span>
-            </div>
-            <div className="hero-portrait-name">Vane</div>
-          </div>
+        <div className="hero-proof">
+          <span>CONVERSACIÓN REAL</span>
+          <span>MEMORIA EN CONSTRUCCIÓN</span>
+          <span>BIBLIOTECA CURADA</span>
+        </div>
+      </div>
+      <div className="hero-visual">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/queens/img-042-hero.jpg" alt="La Bardera en estudio con luces violetas" />
+        <div className="hero-vignette" />
+        <div className="hero-stamp">T1<br /><span>LA BARDERA</span></div>
+        <div className="live-card">
+          <span>LIVE STATUS</span>
+          <strong><i /> BETA ONLINE</strong>
+          <p>“Dale. Contame desde el principio, sin versión prolija.”</p>
         </div>
       </div>
     </section>

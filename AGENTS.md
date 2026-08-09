@@ -8,6 +8,8 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - Los dos landings mandan conjuntamente.
 - `Riotqueens-Ai-Landing-Mock.html` gobierna identidad, voz, composición y dirección visual.
 - `Reiniciando-chat-anterior.html` gobierna continuidad, interacción y flujo.
+- `RiotQueens_logo_design_202608082344.jpeg` es el logo oficial bloqueado; la copia web canónica tiene SHA-256 `e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1`.
+- No redibujar, reinterpretar, recortar destructivamente ni reemplazar el logo sin decisión expresa del owner.
 - No reinterpretar, homogeneizar ni reemplazar ninguno con una estética genérica.
 - Ante una contradicción material entre ambos, documentarla y escalarla al owner.
 - `SPECT.md` es la autoridad funcional y arquitectónica vigente.
@@ -35,6 +37,7 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - Nunca commitear secretos, datos personales, originales privados, referencias de identidad ni workflows sensibles.
 - No usar nombres, imágenes o datos de personas reales en fixtures.
 - Trabajar con copias verificadas, previews y derivados; no sobrescribir masters.
+- Los assets de `FOTOS_FINALES` que entren al repo son copias provisionales hasta la selección final del owner y deben figurar en `docs/ASSET_PROVENANCE.md`.
 - Preservar trazabilidad de memoria, configuración, créditos, medios y linaje de assets.
 - Nada premium llega al navegador antes de autorización backend.
 - No servir directorios personales desde el VPS.

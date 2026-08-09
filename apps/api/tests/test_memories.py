@@ -149,8 +149,8 @@ def test_memory_context_section_returns_protective_wrapper_with_json_data() -> N
 
 
 def test_memory_context_section_is_separate_from_vane_prompt() -> None:
-    """The memory section must NOT contain the canonical Vane system prompt
-    content (e.g. "Sos Vane"). It is its own block, prepended separately.
+    """The memory section must NOT contain the canonical Queen system prompt
+    content (e.g. "Sos La Bardera"). It is its own block, prepended separately.
     """
     from app.domain.memories import MemoryRecord
 
@@ -164,8 +164,8 @@ def test_memory_context_section_is_separate_from_vane_prompt() -> None:
     ]
     section = memory_context_section(records)
     assert section is not None
-    assert "Sos Vane" not in section
-    assert "compañera IA adulta" not in section
+    assert "Sos La Bardera" not in section
+    assert "personaje virtual ficticio" not in section
 
 
 def test_memory_context_section_adversarial_content_is_json_escaped() -> None:

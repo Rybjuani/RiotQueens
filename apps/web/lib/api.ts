@@ -7,7 +7,7 @@
  * OutputValidator), not a second Next.js API route. The conversation_id
  * is a per-browser-session identifier (lib/session.ts), NOT a shared
  * constant. The client never sends a system prompt — the server owns
- * the canonical Vane personality.
+ * the canonical Queen personality.
  */
 
 import { getConversationId } from "@/lib/session";
@@ -43,7 +43,7 @@ export interface ChatResponse {
 }
 
 /**
- * Send a single chat message to the canonical companion (Vane).
+ * Send a single chat message to the canonical Queen.
  * The backend keeps conversation state server-side; the frontend sends
  * one message at a time per the existing ChatRequest contract.
  */
@@ -56,7 +56,7 @@ export async function sendChat(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
-      character_id: opts?.character_id ?? "vane",
+      character_id: opts?.character_id ?? "bardera",
       conversation_id: getConversationId(),
     }),
     signal: opts?.signal,
@@ -91,7 +91,7 @@ export async function clearConversation(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_id: "demo-user",
-        character_id: opts?.character_id ?? "vane",
+        character_id: opts?.character_id ?? "bardera",
       }),
       signal: opts?.signal,
     },
@@ -106,7 +106,7 @@ export async function clearConversation(
  * Inspect the server-side conversation history for the current browser
  * session. Used by the dev diagnostic panel to verify multi-turn
  * continuity. Returns the stored messages (user + assistant only — the
- * canonical Vane system prompt is NEVER stored and NEVER returned).
+ * canonical Queen system prompt is NEVER stored and NEVER returned).
  */
 export interface ConversationMessageView {
   id: string;
@@ -129,7 +129,7 @@ export async function getConversation(
 ): Promise<ConversationSummary> {
   const res = await fetch(
     `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?user_id=demo-user&character_id=${encodeURIComponent(
-      opts?.character_id ?? "vane",
+      opts?.character_id ?? "bardera",
     )}`,
     { signal: opts?.signal },
   );

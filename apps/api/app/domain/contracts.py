@@ -118,7 +118,7 @@ class ModelResponse(BaseModel):
 
 class ChatRequest(BaseModel):
     user_id: str = "demo-user"
-    character_id: str = "host"
+    character_id: str = "bardera"
     conversation_id: str = "demo-conversation"
     message: str = Field(min_length=1, max_length=4_000)
     route: Route = Route.FAST_CHAT
@@ -151,7 +151,7 @@ class ConversationMessageView(BaseModel):
     """API view of a single stored conversation message.
 
     Only ``user`` and ``assistant`` roles are ever stored; the canonical
-    Vane system prompt is NEVER persisted and is never returned here.
+    Queen system prompt is NEVER persisted and is never returned here.
     """
 
     id: str
@@ -181,11 +181,11 @@ class ConversationScopeRequest(BaseModel):
 
     `user_id` defaults to the same prototype value `ChatRequest` uses
     so the chat flow stays consistent without auth. `character_id`
-    defaults to ``"vane"`` to match the canonical companion.
+    defaults to ``"bardera"`` to match the canonical Queen.
     """
 
     user_id: str = "demo-user"
-    character_id: str = "vane"
+    character_id: str = "bardera"
 
 
 class MemoryCreateRequest(BaseModel):
@@ -203,7 +203,7 @@ class MemoryCreateRequest(BaseModel):
     """
 
     user_id: str = "demo-user"
-    character_id: str = "vane"
+    character_id: str = "bardera"
     content: str = Field(min_length=1, max_length=500)
 
 

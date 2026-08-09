@@ -1,1 +1,1 @@
-"""Companion Studio API."""
+"""RiotQueens API."""

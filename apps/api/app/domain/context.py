@@ -3,11 +3,11 @@
 This module is the single place that decides what `messages` list the
 provider receives. It composes the request in this STRICT order:
 
-    1. Canonical Vane system prompt (`companions.get_system_prompt`)
+    1. Canonical Queen system prompt (`companions.get_system_prompt`)
        — server-owned, re-prepended on EVERY request, NEVER stored.
     2. Server-owned memory context (`memories.memory_context_section`)
        — built from scoped explicit user facts, as a SEPARATE system
-       block, never mixed into the Vane prompt.
+       block, never mixed into the Queen prompt.
     3. Bounded conversation history (`conversations.get_history`)
        — prior user + assistant turns, scoped by
        (user_id, character_id, conversation_id). Bound by
@@ -100,7 +100,7 @@ async def assemble_request_messages(
     """Build the canonical `messages` list for a model request.
 
     Order is fixed:
-      1. Canonical Vane system prompt (server-owned, never stored).
+      1. Canonical Queen system prompt (server-owned, never stored).
       2. Server-owned memory context (separate system block, only if
          the user has explicit memories).
       3. Bounded conversation history (prior user/assistant turns).
@@ -114,7 +114,7 @@ async def assemble_request_messages(
     """
     messages: list[MessageInput] = []
 
-    # 1. Canonical Vane system prompt.
+    # 1. Canonical Queen system prompt.
     system_prompt = get_system_prompt(character_id)
     if system_prompt:
         messages.append(MessageInput(role="system", content=system_prompt))
