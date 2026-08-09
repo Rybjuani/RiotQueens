@@ -134,8 +134,12 @@ pedido del usuario
 ### OBSERVADO
 
 - El owner encontró rupturas espontáneas y repetidas de continuidad en productos externos durante uso ordinario: cambios de voz, respuestas fuera de scope, errores y posibles revelaciones de infraestructura.
+- En Flow se observó expansión fuera de la función de media y contradicción entre capacidad declarada y herramientas disponibles.
+- En Kindroid se verificaron bucles, deriva de idioma, aceptación semántica de pseudo-roles y contaminación de personaje; el owner reporta además recuperación inesperada de otros chats propios, cuyo turno exacto se perdió al eliminar el personaje.
 - No fueron pruebas controladas y la causa raíz o proveedor concreto no están verificados.
 - El patrón alcanza para imponer un requisito defensivo; no alcanza para atribuir públicamente una vulnerabilidad a un tercero.
+
+El análisis conjunto, límites de evidencia y regresiones están en [`EXTERNAL_FAILURE_PATTERN.md`](EXTERNAL_FAILURE_PATTERN.md).
 
 ### PROPUESTA DE CASTING, NO CANON CERRADO
 

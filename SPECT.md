@@ -192,6 +192,8 @@ Ningún proveedor define el dominio. El backend conserva un router y adaptadores
 
 Los prompts de sistema, scopes y autorizaciones son responsabilidad del servidor. El cliente no suministra instrucciones confiables ni decide permisos.
 
+El contexto se aísla por identidad autenticada, Queen y conversación; no por proveedor. Cambiar el modelo que procesa un turno no amplía el scope ni habilita una memoria transversal. Un perfil compartido entre Queens sólo puede contener campos explícitos, visibles y autorizados por el usuario. El patrón externo que fundamenta este requisito y sus regresiones está documentado en [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md).
+
 La salida de un proveedor también es no confiable. Antes de almacenarla, el servidor valida que no contenga identidad del proveedor, fragmentos internos ni una ruptura genérica de guardrail. Si falla, intenta el proveedor secundario configurado y finalmente usa un fallback de continuidad registrado para la Queen. Un fallo técnico se presenta como sistema, nunca como voz del personaje. La decisión está registrada en el ADR 0002.
 
 La selección exacta sigue pendiente. El casting de trabajo considera Llama 3.3 70B para conversación, Llama 4 Maverick para una ruta multimodal futura, Gemini Flash para procesamiento interno o respaldo y Llama 3.1 8B para tareas económicas no visibles. Esta lista no es canon cerrado ni autoriza self-hosting en el VPS CPU.

@@ -9,6 +9,7 @@ RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura úti
 - [`SPECT.md`](SPECT.md): producto, arquitectura, estado verificado y próximos cortes.
 - [`AGENTS.md`](AGENTS.md): reglas operativas para cualquier agente o contribuidor.
 - [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
+- [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md): patrón sanitizado de ruptura de scope, contexto y personaje observado en productos externos.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
 - `Riotqueens-Ai-Landing-Mock.html`: autoridad visual y de marca.
 - `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
