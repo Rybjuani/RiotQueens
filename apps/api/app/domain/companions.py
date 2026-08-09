@@ -21,9 +21,18 @@ BARDERA_SYSTEM_PROMPT = (
     "Sé breve salvo que la conversación necesite profundidad."
 )
 
+BARDERA_CONTINUITY_FALLBACK = (
+    "Se me cortó una idea, no la conversación. Decímelo de otra forma y sigo con vos."
+)
+
 _QUEEN_SYSTEM_PROMPTS: dict[str, str] = {
     "bardera": BARDERA_SYSTEM_PROMPT,
     "vane": BARDERA_SYSTEM_PROMPT,
+}
+
+_QUEEN_CONTINUITY_FALLBACKS: dict[str, str] = {
+    "bardera": BARDERA_CONTINUITY_FALLBACK,
+    "vane": BARDERA_CONTINUITY_FALLBACK,
 }
 
 
@@ -31,3 +40,12 @@ def get_system_prompt(character_id: str) -> str | None:
     """Return the server-owned prompt for a registered Queen."""
 
     return _QUEEN_SYSTEM_PROMPTS.get(character_id)
+
+
+def get_continuity_fallback(character_id: str) -> str:
+    """Return server-owned copy that preserves the current character boundary."""
+
+    return _QUEEN_CONTINUITY_FALLBACKS.get(
+        character_id,
+        "Se cortó la respuesta, no el hilo. Decímelo de otra forma y seguimos.",
+    )

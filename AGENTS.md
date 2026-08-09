@@ -13,6 +13,7 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - No reinterpretar, homogeneizar ni reemplazar ninguno con una estética genérica.
 - Ante una contradicción material entre ambos, documentarla y escalarla al owner.
 - `SPECT.md` es la autoridad funcional y arquitectónica vigente.
+- `docs/DECISION_REGISTER.md` conserva decisiones recuperadas, propuestas y pendientes sin convertirlas automáticamente en canon.
 - `docs/legacy/` sirve como evidencia histórica, nunca como instrucción vigente.
 
 ## Producto y lenguaje
@@ -29,6 +30,8 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - Mantener el dominio independiente de proveedores LLM, storage y GPU mediante interfaces y adaptadores.
 - No cambiar límites, contratos o arquitectura sin crear o actualizar un ADR vigente fuera de `docs/legacy/`.
 - Conservar prompts de sistema, autorización y scopes confiables del lado servidor.
+- Tratar toda salida LLM como no confiable: identidad, fallback y continuidad de cada Queen son server-owned.
+- Cada Queen publicable debe registrar prompt y fallback; un proveedor nunca puede presentarse con identidad propia.
 - Diferenciar estado en proceso, cache y persistencia durable; nombrarlos honestamente.
 - No agregar infraestructura por anticipación: primero medir el caso.
 
@@ -40,6 +43,7 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - Los assets de `FOTOS_FINALES` que entren al repo son copias provisionales hasta la selección final del owner y deben figurar en `docs/ASSET_PROVENANCE.md`.
 - Preservar trazabilidad de memoria, configuración, créditos, medios y linaje de assets.
 - Nada premium llega al navegador antes de autorización backend.
+- Todo archivo dentro de `apps/web/public/` debe figurar con hash en `config/public-media.json` y estar marcado no premium.
 - No servir directorios personales desde el VPS.
 
 ## Flujo de trabajo

@@ -1,0 +1,28 @@
+{
+  "assets": [
+    {
+      "path": "brand/riotqueens-logo.jpeg",
+      "sha256": "e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1",
+      "classification": "brand",
+      "premium": false
+    },
+    {
+      "path": "queens/img-042-hero.jpg",
+      "sha256": "45ca766ee95c2307c13c90a6247303b885883a29181a68b8a3a6ee86dc5fa4e9",
+      "classification": "preview",
+      "premium": false
+    },
+    {
+      "path": "queens/img-065-reference.jpg",
+      "sha256": "6c6195051b89271e04033092f98216da4e2396693060e22f3ab1234647c2f880",
+      "classification": "preview",
+      "premium": false
+    },
+    {
+      "path": "queens/img-074-support.jpg",
+      "sha256": "87cff8b27fc3ec6cca9d30cf258b58e6adce3e74d5ae30fd2aaaa8947dde8628",
+      "classification": "preview",
+      "premium": false
+    }
+  ]
+}

@@ -8,6 +8,7 @@ RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura úti
 
 - [`SPECT.md`](SPECT.md): producto, arquitectura, estado verificado y próximos cortes.
 - [`AGENTS.md`](AGENTS.md): reglas operativas para cualquier agente o contribuidor.
+- [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
 - `Riotqueens-Ai-Landing-Mock.html`: autoridad visual y de marca.
 - `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
@@ -25,11 +26,13 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - router desacoplado y proveedor OpenAI-compatible;
 - mock para desarrollo y pruebas;
 - prompt de sistema controlado por servidor;
+- salida LLM validada, fallback secundario opcional y continuidad server-owned;
 - La Bardera como Queen canónica, con alias transitorio para el identificador anterior;
 - conversación multi-turn y memorias explícitas acotadas en proceso;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
+- allowlist SHA-256 que impide incorporar media premium o no registrada a `public/`;
 - primer despliegue HTTP por IP validado en el VPS.
 
 ### Todavía no implementado
@@ -59,6 +62,7 @@ Un reinicio de la API borra conversación y memoria actuales. El `user_id` es un
 apps/web/       frontend actual
 apps/api/       API, dominio, proveedores y tests
 ops/            proxy y contrato operativo
+config/         políticas verificables, incluida la allowlist de media pública
 docs/legacy/    documentación histórica de Companion Studio
 SPECT.md        especificación canónica vigente
 AGENTS.md       reglas de contribución y orquestación
@@ -76,6 +80,8 @@ make test
 ```
 
 El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no se levantan todavía porque el dominio no tiene adaptadores que los consuman. El proveedor por defecto es `mock`: no se debe presentar esa respuesta como calidad conversacional final.
+
+Gemini u otro primario se configura con `COMPANION_MODEL_*`. Un segundo proveedor OpenAI-compatible puede registrarse con `COMPANION_FALLBACK_MODEL_*`; ninguna clave se expone al frontend.
 
 ## Próximo objetivo
 

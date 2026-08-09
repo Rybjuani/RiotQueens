@@ -1,8 +1,8 @@
 # RiotQueens.ai — SPECT canónico
 
-**Versión:** 0.1
+**Versión:** 0.2
 
-**Fecha:** 2026-08-08
+**Fecha:** 2026-08-09
 
 **Estado:** fundamento operativo; sustituye como autoridad a la documentación de Companion Studio
 
@@ -51,7 +51,7 @@ Principio de experiencia:
 
 ## 2. Identidad de producto
 
-RiotQueens.ai es una experiencia de personajes virtuales ficticios y originales creados desde cero por el owner. Combina conversación, memoria, presencia narrativa, biblioteca audiovisual curada y, por etapas, capacidades de agente y generación personalizada.
+RiotQueens.ai es una simulación conversacional `+18` con personajes virtuales ficticios y originales creados desde cero por el owner. Combina conversación, memoria, presencia narrativa, biblioteca audiovisual curada y, por etapas, capacidades de agente y generación personalizada. A nivel producto comunica claramente que los personajes son generados mediante IA; dentro del chat evita repetir explicaciones que rompan la experiencia.
 
 ADN:
 
@@ -65,6 +65,8 @@ ADN:
 No convertir el producto en un catálogo genérico ni en una interfaz corporativa. La complejidad vive detrás del producto, no en la cabeza del usuario.
 
 La marca pública utiliza `+18` como señal legal y de elegibilidad. No agrega aclaraciones defensivas sobre actividades que el producto no ofrece.
+
+Las decisiones recuperadas y su estado se conservan en [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md).
 
 ## 3. Voz y experiencia
 
@@ -87,6 +89,8 @@ Debe evitar:
 - respuestas que prioricen mantener una pose por encima de comprender al usuario.
 
 El onboarding debe ser corto, llevar temprano al chat y entregar valor visible pronto. La configuración avanzada aparece de forma progresiva y comprensible.
+
+La configuración inicial puede elegir un preset simple de relación —cercana, cómplice, filosa o adaptación libre— sin reemplazar la personalidad canónica. El cliente envía un ID controlado; prompts, instrucciones y límites permanecen server-owned.
 
 Toda voz tiene dueño:
 
@@ -146,6 +150,8 @@ Estados iniciales: `SOURCE`, `CANDIDATE`, `SUPPORT`, `CANON`, `MASTER`, `HERO` y
 
 Nada premium viaja al navegador antes de que el backend valide autorización. Los originales, masters, referencias de identidad, workflows y materiales de laboratorio permanecen privados. El frontend refleja permisos; no los concede.
 
+El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una intención tipada y el backend selecciona un asset autorizado, registra la entrega, evita repeticiones y emite una URL firmada. El modelo nunca recibe autoridad sobre rutas, permisos o archivos. Video se incorpora después desde biblioteca preproducida. No se activa GPU para reemplazar un corpus que el owner ya produce y cura.
+
 ## 7. Arquitectura
 
 ### Stack de base
@@ -186,6 +192,10 @@ Ningún proveedor define el dominio. El backend conserva un router y adaptadores
 
 Los prompts de sistema, scopes y autorizaciones son responsabilidad del servidor. El cliente no suministra instrucciones confiables ni decide permisos.
 
+La salida de un proveedor también es no confiable. Antes de almacenarla, el servidor valida que no contenga identidad del proveedor, fragmentos internos ni una ruptura genérica de guardrail. Si falla, intenta el proveedor secundario configurado y finalmente usa un fallback de continuidad registrado para la Queen. Un fallo técnico se presenta como sistema, nunca como voz del personaje. La decisión está registrada en el ADR 0002.
+
+La selección exacta sigue pendiente. El casting de trabajo considera Llama 3.3 70B para conversación, Llama 4 Maverick para una ruta multimodal futura, Gemini Flash para procesamiento interno o respaldo y Llama 3.1 8B para tareas económicas no visibles. Esta lista no es canon cerrado ni autoriza self-hosting en el VPS CPU.
+
 ## 9. Cloud Lab
 
 Cloud Lab es infraestructura privada y separada para producción visual reproducible. Puede usar GPU bajo demanda, ComfyUI, Flux, FaceID/IPAdapter, ControlNet/OpenPose, LoRAs y upscale según el workflow validado.
@@ -209,11 +219,23 @@ Para I2V, la prioridad es identidad facial estable por encima de animación comp
 - auth real antes de confiar en `user_id`;
 - entitlements validados en backend;
 - storage privado y URLs firmadas de vida corta;
+- allowlist con SHA-256 para cada preview deliberadamente público;
 - rate limiting como defensa secundaria;
 - logs sin secretos ni contenido sensible innecesario;
 - backups probados y restauración documentada;
 - el VPS no sirve directorios personales ni archivos por un servidor improvisado;
 - despliegue desde un directorio dedicado, detrás de proxy TLS y firewall mínimo.
+
+### Acceso +18 y consentimiento
+
+- el acceso protegido usa clickwrap versionado con casillas sin premarcar;
+- chat, cuenta y premium requieren aceptación vigente validada por backend;
+- el servidor registra timestamp UTC, versiones y hashes de los documentos aceptados;
+- cambios materiales requieren nueva aceptación;
+- marketing y notificaciones se consienten por separado;
+- no se recopila identidad adicional para edad sin un requisito medido.
+
+El contrato está registrado en el ADR 0004. La constancia es evidencia de aceptación, no reemplazo de privacidad, seguridad ni revisión legal por jurisdicción.
 
 ## 11. Forma de trabajo
 
@@ -251,6 +273,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - VPS activo y accesible por clave SSH;
 - SSH endurecido, UFW activo y runtime Docker instalado;
 - release `570ed7e` desplegada y smoke tests HTTP por IP superados;
+- límite de identidad del proveedor y fallback server-owned cubiertos por regresiones;
+- allowlist pública de media con prueba de CI deny-by-default;
 - base frontend/backend y pruebas existentes recuperadas;
 - manifiestos visuales y parte de la documentación histórica localizados.
 
@@ -262,4 +286,6 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - consolidar taxonomía y masters visuales;
 - configurar el registro DNS y emitir TLS;
 - definir observabilidad y restauración mínima;
+- implementar auth y clickwrap versionado;
+- inventariar `/imagenes` y `FOTOS_FINALES` trabajando sólo con copias;
 - repetir smoke tests sobre el dominio por HTTPS.

@@ -2,6 +2,8 @@
 
 Los archivos de esta tabla son copias de trabajo. Los originales externos al repo no fueron modificados.
 
+La allowlist ejecutable está en [`../config/public-media.json`](../config/public-media.json). CI comprueba que las rutas y hashes coincidan y que ninguna entrada pública esté marcada como premium.
+
 | Ruta web | Estado | Fuente curatorial | SHA-256 |
 |---|---|---|---|
 | `apps/web/public/brand/riotqueens-logo.jpeg` | `CANON / LOCKED` | `RiotQueens_logo_design_202608082344.jpeg` | `e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1` |

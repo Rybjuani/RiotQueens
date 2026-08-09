@@ -63,3 +63,10 @@ class ProviderAuthError(ProviderNonRetryableError):
 
 class ProviderRequestError(ProviderNonRetryableError):
     code = "provider_config_error"
+
+
+class ProviderContentBlockedError(ProviderNonRetryableError):
+    """The upstream explicitly withheld a response for content-policy reasons."""
+
+    code = "provider_content_blocked"
+    safe_message = "Model provider withheld the response."

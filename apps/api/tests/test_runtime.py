@@ -136,3 +136,24 @@ def test_runtime_status_no_secret_leak_for_openai(monkeypatch: pytest.MonkeyPatc
     status_str = str(status)
     assert "sk-super-secret-do-not-leak" not in status_str
     assert "api_key" not in status
+
+
+def test_build_router_wires_sanitized_fallback_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("COMPANION_MODEL_BASE_URL", "https://primary.example.com/v1")
+    monkeypatch.setenv("COMPANION_MODEL_API_KEY", "primary-secret")
+    monkeypatch.setenv("COMPANION_MODEL_NAME", "gemini-primary")
+    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_BASE_URL", "https://fallback.example.com/v1")
+    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_API_KEY", "fallback-secret")
+    monkeypatch.setenv("COMPANION_FALLBACK_MODEL_NAME", "llama-fallback")
+
+    rt = build_router()
+    status = runtime_status(rt)
+
+    assert status["fallback_configured"] is True
+    assert status["fallback_model"] == "llama-fallback"
+    assert "primary-secret" not in str(status)
+    assert "fallback-secret" not in str(status)

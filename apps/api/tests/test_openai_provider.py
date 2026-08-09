@@ -14,6 +14,7 @@ from app.domain.contracts import MessageInput, ModelRequest, Route
 from app.domain.providers.errors import (
     ProviderAuthError,
     ProviderConnectError,
+    ProviderContentBlockedError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderRequestError,
@@ -118,6 +119,22 @@ async def test_connect_error_raises_typed_error() -> None:
 async def test_invalid_upstream_shapes_raise_retryable_error(response: httpx.Response) -> None:
     provider = _provider(httpx.MockTransport(lambda _: response))
     with pytest.raises(ProviderInvalidResponseError):
+        await provider.generate(_request())
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"choices": [{"finish_reason": "content_filter", "message": {"content": ""}}]},
+        {"promptFeedback": {"blockReason": "SAFETY"}},
+        {"error": {"status": "PROHIBITED_CONTENT"}},
+    ],
+)
+async def test_explicit_content_block_is_typed(payload: dict) -> None:
+    provider = _provider(httpx.MockTransport(lambda _: httpx.Response(200, json=payload)))
+    with pytest.raises(ProviderContentBlockedError):
         await provider.generate(_request())
     await provider.aclose()
 

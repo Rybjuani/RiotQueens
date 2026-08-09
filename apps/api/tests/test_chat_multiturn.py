@@ -22,6 +22,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
+from app.domain.providers.errors import ProviderContentBlockedError
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
 
@@ -803,13 +804,53 @@ async def test_safe_fallback_content_is_stored_as_assistant_turn(fresh_app) -> N
         },
     )
     assert resp.status_code == 200
-    assert "No pude responder con seguridad" in resp.json()["response"]["content"]
+    assert resp.json()["response"]["provider"] == "server-fallback"
+    assert "no la conversación" in resp.json()["response"]["content"]
 
     # The fallback content must be stored as the assistant turn.
     convo = client.get("/v1/conversations/conv-fb?user_id=user-fb&character_id=vane").json()
     msgs = convo["messages"]
     assert [m["role"] for m in msgs] == ["user", "assistant"]
-    assert "No pude responder con seguridad" in msgs[1]["content"]
+    assert "no la conversación" in msgs[1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_provider_guardrail_block_preserves_pair_and_character(fresh_app) -> None:
+    client, _, main_mod = fresh_app
+
+    class BlockedProvider:
+        name = "blocked-upstream"
+        model = "blocked-model"
+
+        async def generate(self, request: ModelRequest) -> ModelResponse:
+            raise ProviderContentBlockedError()
+
+    main_mod.router = ModelRouter(
+        providers={route: BlockedProvider() for route in Route},
+        validator=OutputValidator(),
+        max_retries=0,
+    )
+
+    resp = client.post(
+        "/v1/chat",
+        json={
+            "message": "No pierdas el hilo.",
+            "character_id": "bardera",
+            "user_id": "user-blocked",
+            "conversation_id": "conv-blocked",
+        },
+    )
+
+    assert resp.status_code == 200
+    response = resp.json()["response"]
+    assert response["provider"] == "server-fallback"
+    assert "Gemini" not in response["content"]
+
+    convo = client.get(
+        "/v1/conversations/conv-blocked?user_id=user-blocked&character_id=bardera"
+    ).json()
+    assert [message["role"] for message in convo["messages"]] == ["user", "assistant"]
+    assert convo["messages"][1]["content"] == response["content"]
 
 
 @pytest.mark.asyncio

@@ -16,6 +16,7 @@ from app.domain.contracts import ModelRequest, ModelResponse, Usage
 from app.domain.providers.errors import (
     ProviderAuthError,
     ProviderConnectError,
+    ProviderContentBlockedError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderRequestError,
@@ -58,6 +59,8 @@ class OpenAICompatibleProvider:
             raise ProviderConnectError() from None
 
         status = response.status_code
+        if status == 400 and self._response_reports_content_block(response):
+            raise ProviderContentBlockedError() from None
         if status in (401, 403):
             raise ProviderAuthError() from None
         if status == 429:
@@ -75,6 +78,8 @@ class OpenAICompatibleProvider:
             raise ProviderInvalidResponseError() from None
         if not isinstance(data, dict):
             raise ProviderInvalidResponseError() from None
+        if self._payload_reports_content_block(data):
+            raise ProviderContentBlockedError() from None
 
         content = self._extract_content(data)
         if not content:
@@ -124,3 +129,42 @@ class OpenAICompatibleProvider:
             )
         except (TypeError, ValueError):
             return Usage()
+
+    def _response_reports_content_block(self, response: httpx.Response) -> bool:
+        try:
+            data = response.json()
+        except ValueError:
+            return False
+        return isinstance(data, dict) and self._payload_reports_content_block(data)
+
+    @staticmethod
+    def _payload_reports_content_block(data: dict[str, Any]) -> bool:
+        blocked_reasons = {
+            "BLOCKED",
+            "BLOCKLIST",
+            "CONTENT_FILTER",
+            "PROHIBITED_CONTENT",
+            "SAFETY",
+        }
+
+        prompt_feedback = data.get("promptFeedback") or data.get("prompt_feedback")
+        if isinstance(prompt_feedback, dict):
+            reason = prompt_feedback.get("blockReason") or prompt_feedback.get("block_reason")
+            if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                return True
+
+        choices = data.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                if not isinstance(choice, dict):
+                    continue
+                reason = choice.get("finish_reason") or choice.get("finishReason")
+                if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                    return True
+
+        error = data.get("error")
+        if isinstance(error, dict):
+            reason = error.get("reason") or error.get("status")
+            if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                return True
+        return False

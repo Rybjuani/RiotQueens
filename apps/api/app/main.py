@@ -32,6 +32,7 @@ from .domain.memories import (
 from .domain.providers.errors import (
     ProviderAuthError,
     ProviderConnectError,
+    ProviderContentBlockedError,
     ProviderError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
@@ -94,6 +95,7 @@ _PROVIDER_HTTP_STATUS: dict[type[ProviderError], int] = {
     ProviderServerError: 503,
     ProviderAuthError: 503,
     ProviderRequestError: 503,
+    ProviderContentBlockedError: 502,
 }
 
 

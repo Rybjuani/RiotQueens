@@ -67,7 +67,6 @@ export function ChatPanel() {
         : { provider: data.response.provider, model: data.response.model, configured: true, mode: "active" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "No se pudo conectar con el chat.");
-      setMessages((current) => [...current, { role: "assistant", content: "Se cortó la señal. Probemos otra vez en un momento." }]);
     } finally {
       setLoading(false);
     }
@@ -118,7 +117,7 @@ export function ChatPanel() {
             />
             <button onClick={() => send()} disabled={loading || !input.trim()}>ENVIAR →</button>
           </div>
-          {error && <p className="chat-error">{error}</p>}
+          {error && <p className="chat-error" role="status">SISTEMA · Se cortó la señal. Tu Queen no cambió de identidad. Probá de nuevo.</p>}
           {process.env.NODE_ENV !== "production" && <details className="chat-diagnostic"><summary>Diagnóstico</summary><p>turnos server: {serverTurnCount ?? "..."} · validación: {validation ? (validation.is_valid ? "OK" : "rechazada") : "..."}</p></details>}
         </div>
       </div>
