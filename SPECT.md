@@ -41,7 +41,7 @@ Orden de autoridad restante:
 1. Este SPECT gobierna producto y arquitectura funcional.
 2. Los ADR vigentes gobiernan decisiones técnicas concretas, sin contradecir los landings ni este SPECT.
 3. Código y pruebas verifican lo que está implementado; no convierten una limitación accidental en decisión de producto.
-4. `docs/legacy/` conserva procedencia histórica y no es autoridad vigente.
+4. Los respaldos externos de contingencia no son autoridad vigente y sólo pueden recuperarse por decisión explícita actual del owner.
 
 Frase rectora:
 
@@ -231,6 +231,8 @@ La temperatura visual es metadata curatorial; no determina por sí sola N0–N2 
 
 Nada premium viaja al navegador antes de que el backend valide autorización. Los originales, masters, referencias de identidad, workflows y materiales de laboratorio permanecen privados. El frontend refleja permisos; no los concede.
 
+Este es el contrato objetivo para cuando la ruta de media privada esté implementada; no describe una capacidad disponible actualmente.
+
 El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una intención tipada y el backend selecciona un asset autorizado, registra la entrega, evita repeticiones y emite una URL firmada. El modelo nunca recibe autoridad sobre rutas, permisos o archivos. Usar un asset oficial como grounding multimodal no lo vuelve público, no concede entitlement y no equivale a entregarlo al navegador. Un adjunto del usuario, una referencia visual interna y una media entregada son contratos diferentes. Video se incorpora después desde biblioteca preproducida. No se activa GPU para reemplazar un corpus que el owner ya produce y cura.
 
 ## 7. Arquitectura
@@ -251,7 +253,7 @@ El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una in
 
 - existen web Next.js y API FastAPI;
 - el frontend porta la composición visual del primer landing y el flujo interactivo del segundo;
-- el roster de universo tiene cinco Queens canónicas, pero sólo `bardera` está implementada; `vane` permanece como alias transitorio de compatibilidad;
+- el roster de universo tiene cinco Queens canónicas, pero sólo `bardera` está implementada;
 - existe abstracción de proveedor y adaptador OpenAI-compatible;
 - existen conversación multi-turn y memorias explícitas en proceso;
 - existen locks por scope, errores tipados, retries y pruebas;
@@ -263,7 +265,7 @@ El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una in
 - el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
 - el flujo público, responsive, chat contra API y páginas legales pasaron QA local;
 - las imágenes provisionales no constituyen entrega premium ni sustituyen autorización de media;
-- el build de contenedores y el contrato Compose todavía requieren validación en el VPS.
+- Docker Compose y los builds de API y web fueron validados en el VPS para la release `570ed7e`; toda release posterior requiere su propia validación.
 
 No presentar capacidades objetivo como si ya estuvieran implementadas. Un claim de capacidad debe coincidir con la release exacta publicada, no sólo con HEAD, una configuración local o una intención de producto.
 

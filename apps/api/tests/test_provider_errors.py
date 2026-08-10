@@ -38,7 +38,7 @@ class SequenceProvider:
 def _request() -> ModelRequest:
     return ModelRequest(
         route=Route.FAST_CHAT,
-        character_id="vane",
+        character_id="queen-test",
         user_id="user",
         conversation_id="conversation",
         messages=[MessageInput(role="user", content="Hola")],
@@ -85,7 +85,7 @@ def _client_with_provider(provider: SequenceProvider, *, retries: int = 1) -> Te
 def test_timeout_exhaustion_maps_to_504() -> None:
     provider = SequenceProvider([ProviderTimeoutError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "vane"}
+        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
     )
     assert provider.calls == 2
     assert response.status_code == 504
@@ -95,7 +95,7 @@ def test_timeout_exhaustion_maps_to_504() -> None:
 def test_connect_exhaustion_maps_to_503() -> None:
     provider = SequenceProvider([ProviderConnectError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "vane"}
+        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
     )
     assert provider.calls == 2
     assert response.status_code == 503
@@ -106,7 +106,7 @@ def test_connect_exhaustion_maps_to_503() -> None:
 def test_provider_auth_error_does_not_retry_or_expose_upstream_auth(error: Exception) -> None:
     provider = SequenceProvider([error])
     response = _client_with_provider(provider, retries=3).post(
-        "/v1/chat", json={"message": "hola", "character_id": "vane"}
+        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
     )
     assert provider.calls == 1
     assert response.status_code == 503
@@ -117,7 +117,7 @@ def test_provider_auth_error_does_not_retry_or_expose_upstream_auth(error: Excep
 def test_invalid_upstream_response_is_bounded_retry_then_502() -> None:
     provider = SequenceProvider([ProviderInvalidResponseError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "vane"}
+        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
     )
     assert provider.calls == 2
     assert response.status_code == 502
@@ -138,7 +138,7 @@ def test_invalid_upstream_response_is_bounded_retry_then_502() -> None:
 def test_error_responses_never_leak_secret_material(error: Exception) -> None:
     provider = SequenceProvider([error])
     response = _client_with_provider(provider, retries=0).post(
-        "/v1/chat", json={"message": "hola", "character_id": "vane"}
+        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
     )
     body = response.text.lower()
     assert "authorization" not in body

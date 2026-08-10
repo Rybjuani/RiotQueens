@@ -8,7 +8,7 @@
 
 El runtime heredado de Companion Studio todavía usaba variables `COMPANION_*` aunque la marca, el repositorio y el producto canónico ya son RiotQueens.ai. Mantener ambos nombres activos crearía precedencias ambiguas, errores de despliegue y una dependencia conceptual con el producto anterior.
 
-El primer despliegue público todavía no ocurrió, por lo que este es el momento de corregir el contrato sin sostener aliases indefinidos.
+El primer despliegue público todavía no había ocurrido al adoptar este ADR, por lo que ese era el momento de corregir el contrato sin sostener aliases indefinidos.
 
 ## Decisión
 
@@ -26,7 +26,7 @@ El primer despliegue público todavía no ocurrió, por lo que este es el moment
   - `RIOTQUEENS_FALLBACK_MODEL_NAME`.
 - CORS, conversación y memoria siguen la misma regla: `RIOTQUEENS_CORS_ORIGINS`, `RIOTQUEENS_CONVERSATION_MAX_TURNS` y `RIOTQUEENS_MEMORY_MAX_PER_SCOPE`.
 - El runtime no acepta aliases `COMPANION_*`. Un nombre único evita que dos secretos o proveedores compitan silenciosamente.
-- La documentación histórica puede conservar nombres anteriores únicamente dentro de `docs/legacy/`.
+- Los nombres anteriores sólo pueden aparecer como contexto histórico explícito de una migración; no forman parte del contrato ni de la documentación operativa vigente.
 - Los contratos internos continúan siendo independientes del proveedor: `openai` identifica el adaptador compatible, no una marca de producto ni un modelo concreto.
 - El sufijo de proveedor incluido en un identificador remoto, por ejemplo `:ovhcloud`, es configuración de infraestructura y no se filtra al dominio.
 

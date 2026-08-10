@@ -12,7 +12,7 @@ Hard scope rules (Issue #5 + auditor fix PR #6)
    ``(user_id, character_id, conversation_id)``. The store MUST NOT mix
    messages across different users, characters, or conversation ids.
 2. The canonical Queen system prompt is NEVER stored here. It is prepended
-   to every model request from `app/domain/companions.py` at request time.
+   to every model request from `app/domain/queens.py` at request time.
 3. Only validated assistant content actually returned to the user may be
    stored as an assistant turn. Provider failures (timeout, 429, 5xx,
    auth/config, connect, malformed, empty) MUST NOT append a fake turn.
@@ -129,7 +129,7 @@ class StoredMessage:
 
     Only ``role`` values ``"user"`` and ``"assistant"`` are stored here.
     System prompts are never persisted — they are always re-prepended at
-    request time from `companions.py`.
+    request time from `queens.py`.
     """
 
     id: str

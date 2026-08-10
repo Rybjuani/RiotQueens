@@ -29,7 +29,7 @@ from app.domain.validation import OutputValidator
 def _request() -> ModelRequest:
     return ModelRequest(
         route=Route.FAST_CHAT,
-        character_id="vane",
+        character_id="bardera",
         user_id="user",
         conversation_id="conversation",
         messages=[MessageInput(role="user", content="Hola")],

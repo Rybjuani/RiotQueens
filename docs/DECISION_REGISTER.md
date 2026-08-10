@@ -61,7 +61,7 @@ Puede cambiar de ubicación, escala, diseño o tratamiento visual. No puede para
 
 ### DECIDIDO — canon autoral y claims
 
-El artefacto recuperado se conserva literalmente en [`canon/OWNER_MANIFESTO_SOURCE.md`](canon/OWNER_MANIFESTO_SOURCE.md) como `CANON AUTORAL / FUENTE MADRE`. El SHA-256 de su cuerpo literal es `04e062b37597d840657227f8f51f5842611dcd77fc01ec665a23ee2f6dc3414f`. Una adaptación vive fuera de esa fuente y nunca la sustituye. La fuente no se copia a `docs/legacy/`, `public/` ni al prompt de Bardera.
+El artefacto recuperado se conserva literalmente en [`canon/OWNER_MANIFESTO_SOURCE.md`](canon/OWNER_MANIFESTO_SOURCE.md) como `CANON AUTORAL / FUENTE MADRE`. El SHA-256 de su cuerpo literal es `04e062b37597d840657227f8f51f5842611dcd77fc01ec665a23ee2f6dc3414f`. Una adaptación vive fuera de esa fuente y nunca la sustituye. La fuente no se copia a `public/` ni al prompt de Bardera.
 
 El manifiesto, su lenguaje y el motivo Kansas/Tinder/bondi permanecen como material creativo y autoral. Montos como `$400` o `60 lucas`, `retención infinita`, `todo el día`, `siempre` y comparaciones económicas concretas son `CLAIM HISTÓRICO / VARIABLE`: no están autorizados como claims vigentes sin nueva validación, pero no vuelven obsoleto el documento que los contiene. El título autoral `SLOGANS TIER BARATO` tampoco redefine la taxonomía de tiers.
 
@@ -301,7 +301,7 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 - Una conversación externa nunca es la única fuente de una decisión.
 - Una síntesis, adaptación o conversación nunca sustituye el cuerpo literal de una fuente primaria del owner.
 - Toda decisión aceptada cambia este registro, el SPECT o un ADR en la misma entrega.
-- Los documentos históricos van a `docs/legacy/`; no se borran para “limpiar”.
+- La documentación stale se elimina del HEAD; los respaldos externos de contingencia no son autoridad y sólo pueden recuperarse por decisión explícita actual del owner.
 - Secretos y evidencia privada permanecen fuera de Git.
 - Los cambios se publican en una rama con pruebas y commit convencional.
 - Los puntos no aprobados se etiquetan `PROPUESTA` o `PENDIENTE`; no se presentan como canon.

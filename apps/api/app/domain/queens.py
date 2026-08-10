@@ -1,8 +1,7 @@
 """Server-owned canonical Queen registry.
 
 The client supplies a character identifier, never a trusted system prompt.
-`bardera` is the canonical launch id. `vane` remains as a compatibility alias
-for conversations created by the previous prototype.
+`bardera` is the canonical launch id and the only implemented Queen.
 """
 
 from __future__ import annotations
@@ -27,12 +26,10 @@ BARDERA_CONTINUITY_FALLBACK = (
 
 _QUEEN_SYSTEM_PROMPTS: dict[str, str] = {
     "bardera": BARDERA_SYSTEM_PROMPT,
-    "vane": BARDERA_SYSTEM_PROMPT,
 }
 
 _QUEEN_CONTINUITY_FALLBACKS: dict[str, str] = {
     "bardera": BARDERA_CONTINUITY_FALLBACK,
-    "vane": BARDERA_CONTINUITY_FALLBACK,
 }
 
 

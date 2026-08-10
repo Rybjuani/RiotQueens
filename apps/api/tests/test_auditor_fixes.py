@@ -158,7 +158,7 @@ async def test_forced_overlap_same_scope_serializes_as_complete_pairs() -> None:
                 "/v1/chat",
                 json={
                     "message": "mensaje A primero",
-                    "character_id": "vane",
+                    "character_id": "bardera",
                     "user_id": "user-race",
                     "conversation_id": "conv-race",
                 },
@@ -174,7 +174,7 @@ async def test_forced_overlap_same_scope_serializes_as_complete_pairs() -> None:
                 "/v1/chat",
                 json={
                     "message": "mensaje B segundo",
-                    "character_id": "vane",
+                    "character_id": "bardera",
                     "user_id": "user-race",
                     "conversation_id": "conv-race",
                 },
@@ -194,7 +194,7 @@ async def test_forced_overlap_same_scope_serializes_as_complete_pairs() -> None:
     # Verify the stored history is exactly [user1, assistant1, user2, assistant2].
     # Use the raw record to inspect the actual stored state.
     scope = ConversationScopeKey(
-        user_id="user-race", character_id="vane", conversation_id="conv-race"
+        user_id="user-race", character_id="bardera", conversation_id="conv-race"
     )
     raw = await main_mod.conversation_store._raw_record(scope)
     assert raw is not None
@@ -280,7 +280,7 @@ async def test_different_scopes_run_in_parallel_under_transaction_lock() -> None
                 "/v1/chat",
                 json={
                     "message": "msg A",
-                    "character_id": "vane",
+                    "character_id": "bardera",
                     "user_id": "user-par",
                     "conversation_id": "conv-par-a",
                 },
@@ -292,7 +292,7 @@ async def test_different_scopes_run_in_parallel_under_transaction_lock() -> None
                 "/v1/chat",
                 json={
                     "message": "msg B",
-                    "character_id": "vane",
+                    "character_id": "bardera",
                     "user_id": "user-par",
                     "conversation_id": "conv-par-b",
                 },
@@ -334,7 +334,7 @@ async def test_stored_record_is_pruned_to_bound_after_20_turns() -> None:
     """
     store = InProcessConversationStore(max_turns=2)
     scope = ConversationScopeKey(
-        user_id="user-bound", character_id="vane", conversation_id="conv-bound"
+        user_id="user-bound", character_id="bardera", conversation_id="conv-bound"
     )
     for i in range(20):
         async with store.transaction(scope):
@@ -359,7 +359,7 @@ async def test_stored_record_in_flight_trailing_user_preserved() -> None:
     """
     store = InProcessConversationStore(max_turns=2)
     scope = ConversationScopeKey(
-        user_id="user-trail", character_id="vane", conversation_id="conv-trail"
+        user_id="user-trail", character_id="bardera", conversation_id="conv-trail"
     )
     # 3 complete turns → pruned to 2 pairs (4 messages).
     for i in range(3):
@@ -417,7 +417,7 @@ async def test_get_conversation_returns_bounded_state_honestly() -> None:
             "/v1/chat",
             json={
                 "message": f"msg {i}",
-                "character_id": "vane",
+                "character_id": "bardera",
                 "user_id": "user-get",
                 "conversation_id": "conv-get",
             },
@@ -425,7 +425,7 @@ async def test_get_conversation_returns_bounded_state_honestly() -> None:
         assert resp.status_code == 200
 
     # GET the conversation — must show only the last 2 pairs.
-    convo = client.get("/v1/conversations/conv-get?user_id=user-get&character_id=vane").json()
+    convo = client.get("/v1/conversations/conv-get?user_id=user-get&character_id=bardera").json()
     assert len(convo["messages"]) == 4
     roles = [m["role"] for m in convo["messages"]]
     assert roles == ["user", "assistant", "user", "assistant"]
@@ -443,7 +443,9 @@ async def test_rollback_after_provider_failure_leaves_bounded_valid_state() -> N
     """
 
     store = InProcessConversationStore(max_turns=2)
-    scope = ConversationScopeKey(user_id="user-rb", character_id="vane", conversation_id="conv-rb")
+    scope = ConversationScopeKey(
+        user_id="user-rb", character_id="bardera", conversation_id="conv-rb"
+    )
     # 2 complete turns → exactly at the bound.
     for i in range(2):
         async with store.transaction(scope):
@@ -491,7 +493,7 @@ async def test_adversarial_memory_cannot_inject_instructions(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-adv",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": adversarial,
         },
     )
@@ -500,7 +502,7 @@ async def test_adversarial_memory_cannot_inject_instructions(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "hola",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-adv",
             "conversation_id": "conv-adv",
         },
@@ -509,7 +511,7 @@ async def test_adversarial_memory_cannot_inject_instructions(fresh_app) -> None:
     msgs = capturing.captured_requests[0].messages
     roles = [m.role for m in msgs]
 
-    # The provider saw: [system (Vane), system (memory wrapper+data), user]
+    # The provider saw: [system (Bardera), system (memory wrapper+data), user]
     assert roles == ["system", "system", "user"]
 
     # The second system message is the protective wrapper + JSON data.
@@ -553,7 +555,7 @@ async def test_adversarial_memory_with_json_breaking_chars(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-adv2",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": adversarial,
         },
     )
@@ -562,7 +564,7 @@ async def test_adversarial_memory_with_json_breaking_chars(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "hola",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-adv2",
             "conversation_id": "conv-adv2",
         },
@@ -604,7 +606,9 @@ async def test_lock_not_deleted_on_delete_conversation() -> None:
     (Auditor fix: never pop per-scope locks.)
     """
     store = InProcessConversationStore(max_turns=8)
-    scope = ConversationScopeKey(user_id="user-lk", character_id="vane", conversation_id="conv-lk")
+    scope = ConversationScopeKey(
+        user_id="user-lk", character_id="bardera", conversation_id="conv-lk"
+    )
     # Create the lock by appending a message.
     await store.append_user_message(scope, "msg")
     lock_before = store._lock_for(scope)
@@ -626,7 +630,7 @@ async def test_lock_not_deleted_on_delete_all_memories() -> None:
     from app.domain.memories import InProcessMemoryStore, MemoryScopeKey
 
     store = InProcessMemoryStore(max_per_scope=32)
-    scope = MemoryScopeKey(user_id="user-ml", character_id="vane")
+    scope = MemoryScopeKey(user_id="user-ml", character_id="bardera")
     await store.add_memory(scope, "fact")
     lock_before = store._lock_for(scope)
 

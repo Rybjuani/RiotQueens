@@ -8,4 +8,3 @@
 **/.ruff_cache
 **/node_modules
 **/.next
-docs/legacy

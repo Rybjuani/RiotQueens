@@ -4,7 +4,6 @@ from collections.abc import Mapping, Sequence
 from time import perf_counter
 from typing import Protocol
 
-from .companions import get_continuity_fallback
 from .contracts import ModelRequest, ModelResponse, Route, Usage
 from .providers.errors import (
     ProviderContentBlockedError,
@@ -13,6 +12,7 @@ from .providers.errors import (
     ProviderRetryableError,
     ProviderTimeoutError,
 )
+from .queens import get_continuity_fallback
 from .validation import OutputValidator
 
 SAFE_FALLBACK_CONTENT = get_continuity_fallback("bardera")

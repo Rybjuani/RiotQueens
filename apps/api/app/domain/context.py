@@ -3,7 +3,7 @@
 This module is the single place that decides what `messages` list the
 provider receives. It composes the request in this STRICT order:
 
-    1. Canonical Queen system prompt (`companions.get_system_prompt`)
+    1. Canonical Queen system prompt (`queens.get_system_prompt`)
        — server-owned, re-prepended on EVERY request, NEVER stored.
     2. Server-owned memory context (`memories.memory_context_section`)
        — built from scoped explicit user facts, as a SEPARATE system
@@ -77,7 +77,6 @@ next retry starts from the same state. The pop helper is in
 
 from __future__ import annotations
 
-from .companions import get_system_prompt
 from .contracts import MessageInput, ModelRequest, Route
 from .conversations import (
     ConversationScopeKey,
@@ -85,6 +84,7 @@ from .conversations import (
     stored_to_message_input,
 )
 from .memories import MemoryScopeKey, MemoryStore, memory_context_section
+from .queens import get_system_prompt
 
 
 async def assemble_request_messages(

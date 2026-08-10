@@ -11,9 +11,10 @@ RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura úti
 - [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
 - [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md): patrón sanitizado de ruptura de scope, contexto y personaje observado en productos externos.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
-- `Riotqueens-Ai-Landing-Mock.html`: autoridad visual y de marca.
+- `Riotqueens-Ai-Landing-Mock.html`: autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes.
 - `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
-- [`docs/legacy/`](docs/legacy/README.md): documentación histórica preservada, no normativa.
+
+La documentación stale se elimina del HEAD y su respaldo de contingencia se guarda en `/home/rybjuani/Documentos/_scratch_trash/`; sólo puede recuperarse por decisión explícita actual del owner.
 
 Las copias crudas de los landings están registradas por SHA-256 en el SPECT y permanecen fuera del runtime por sus bundles y datos embebidos. Su composición y su flujo ya fueron auditados y portados al frontend funcional. El logo oficial y los assets provisionales versionados conservan procedencia y hash en [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md).
 
@@ -28,7 +29,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - mock para desarrollo y pruebas;
 - prompt de sistema controlado por servidor;
 - salida LLM validada, fallback secundario opcional y continuidad server-owned;
-- La Bardera como Queen canónica, con alias transitorio para el identificador anterior;
+- La Bardera como Queen canónica y única implementada en runtime;
 - conversación multi-turn y memorias explícitas acotadas en proceso;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
@@ -64,7 +65,6 @@ apps/web/       frontend actual
 apps/api/       API, dominio, proveedores y tests
 ops/            proxy y contrato operativo
 config/         políticas verificables, incluida la allowlist de media pública
-docs/legacy/    documentación histórica de Companion Studio
 SPECT.md        especificación canónica vigente
 AGENTS.md       reglas de contribución y orquestación
 ```

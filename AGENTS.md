@@ -14,7 +14,7 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - Ante una contradicción material entre ambos, documentarla y escalarla al owner.
 - `SPECT.md` es la autoridad funcional y arquitectónica vigente.
 - `docs/DECISION_REGISTER.md` conserva decisiones recuperadas, propuestas y pendientes sin convertirlas automáticamente en canon.
-- `docs/legacy/` sirve como evidencia histórica, nunca como instrucción vigente.
+- La documentación stale se elimina del HEAD; un respaldo externo de contingencia no es autoridad y sólo puede recuperarse por decisión explícita actual del owner.
 
 ## Producto y lenguaje
 
@@ -28,7 +28,7 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 ## Arquitectura
 
 - Mantener el dominio independiente de proveedores LLM, storage y GPU mediante interfaces y adaptadores.
-- No cambiar límites, contratos o arquitectura sin crear o actualizar un ADR vigente fuera de `docs/legacy/`.
+- No cambiar límites, contratos o arquitectura sin crear o actualizar un ADR vigente.
 - Conservar prompts de sistema, autorización y scopes confiables del lado servidor.
 - Tratar toda salida LLM como no confiable: identidad, fallback y continuidad de cada Queen son server-owned.
 - Cada Queen publicable debe registrar prompt y fallback; un proveedor nunca puede presentarse con identidad propia.

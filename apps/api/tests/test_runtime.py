@@ -1,7 +1,7 @@
 """Tests for the /v1/chat handler and /v1/runtime/status endpoint.
 
 Covers:
-- Server-side system prompt injection for character_id="vane".
+- Server-side system prompt injection for character_id="bardera".
 - No system prompt injected for unknown character ids (graceful).
 - Runtime status reports safe diagnostics (no secrets).
 - build_router() defaults to mock and falls back to mock when
@@ -30,11 +30,11 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(main_mod.app)
 
 
-def test_chat_injects_vane_system_prompt(client: TestClient) -> None:
-    """character_id=vane prepends the server-owned system prompt."""
+def test_chat_injects_bardera_system_prompt(client: TestClient) -> None:
+    """character_id=bardera prepends the server-owned system prompt."""
     resp = client.post(
         "/v1/chat",
-        json={"message": "hola", "character_id": "vane"},
+        json={"message": "hola", "character_id": "bardera"},
     )
     assert resp.status_code == 200
     data = resp.json()

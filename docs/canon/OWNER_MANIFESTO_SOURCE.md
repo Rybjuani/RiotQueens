@@ -10,7 +10,7 @@ La frase `La humanidad las expulsa, y en ellas expulsa al amor.` está `LOCKED` 
 
 El cuerpo comprendido entre `BEGIN VERBATIM` y `END VERBATIM` se preserva literalmente. No es por sí solo copy autorizado para una release concreta: cualquier adaptación vive fuera de este archivo y debe respetar implementación, configuración de producción, pricing, políticas, condiciones legales y reglas de claims vigentes.
 
-Este archivo permanece en `docs/canon/`: no se copia a `docs/legacy/`, `public/` ni al prompt de Bardera.
+Este archivo permanece en `docs/canon/`: no se copia a `public/` ni al prompt de Bardera.
 
 <!-- BEGIN VERBATIM -->
 ```text
