@@ -20,12 +20,12 @@ import importlib
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
 from app.domain.conversations import ConversationScopeKey, InProcessConversationStore
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
+from tests.asgi_test_client import SyncASGIClient as TestClient
 
 # ---------------------------------------------------------------------- #
 # Test fixtures — a delayed CapturingMockProvider + a fresh FastAPI app

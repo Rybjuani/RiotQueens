@@ -2,7 +2,8 @@
 
 Covers:
 - Server-side system prompt injection for character_id="bardera".
-- No system prompt injected for unknown character ids (graceful).
+- Stable rejection of unknown character ids before runtime work.
+- Explicit, bounded scope identifiers and server-owned public routing.
 - Runtime status reports safe diagnostics (no secrets).
 - build_router() defaults to mock and falls back to mock when
   provider=openai but credentials are missing.
@@ -11,10 +12,11 @@ Covers:
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.domain.contracts import Route
+from app.domain.queens import BARDERA_SYSTEM_PROMPT, is_registered_queen
 from app.domain.router import MockModelProvider, build_router, runtime_status
+from tests.asgi_test_client import SyncASGIClient as TestClient
 
 
 @pytest.fixture()
@@ -30,33 +32,62 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(main_mod.app)
 
 
+def _chat_payload(**overrides: str) -> dict[str, str]:
+    payload = {
+        "message": "hola",
+        "character_id": "bardera",
+        "user_id": "runtime-user",
+        "conversation_id": "runtime-conversation",
+    }
+    payload.update(overrides)
+    return payload
+
+
 def test_chat_injects_bardera_system_prompt(client: TestClient) -> None:
     """character_id=bardera prepends the server-owned system prompt."""
     resp = client.post(
         "/v1/chat",
-        json={"message": "hola", "character_id": "bardera"},
+        json=_chat_payload(),
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["response"]["provider"] == "mock"
-    assert data["response"]["validation"]["is_valid"] is True
+    assert set(data["response"]) == {"content"}
+    assert data["response"]["content"]
 
 
-def test_chat_unknown_character_does_not_inject_system_prompt(client: TestClient) -> None:
-    """Unknown character_id is graceful: no system prompt, still 200."""
+def test_chat_unknown_character_returns_stable_not_found(client: TestClient) -> None:
     resp = client.post(
         "/v1/chat",
-        json={"message": "hola", "character_id": "unknown-character"},
+        json=_chat_payload(character_id="unknown-character"),
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["response"]["provider"] == "mock"
+    assert resp.status_code == 404
+    assert resp.json() == {
+        "detail": {
+            "code": "queen_not_found",
+            "message": "Queen is not available.",
+        }
+    }
 
 
-def test_chat_default_character_id_works(client: TestClient) -> None:
-    """No character_id supplied → defaults to 'host' (no system prompt). Still 200."""
-    resp = client.post("/v1/chat", json={"message": "hola"})
-    assert resp.status_code == 200
+def test_bardera_runtime_contract_contains_ratified_voice_invariants() -> None:
+    prompt = BARDERA_SYSTEM_PROMPT.lower()
+
+    assert is_registered_queen("bardera") is True
+    assert is_registered_queen("unknown-character") is False
+    assert all(
+        invariant in prompt
+        for invariant in (
+            "timing",
+            "sinceridad",
+            "ingenio",
+            "bardeo afectivo",
+            "aguante",
+            "la confianza y el afecto son progresivos",
+            "ante dolor real",
+            "nunca para humillar",
+            "no sexualices automáticamente",
+        )
+    )
 
 
 def test_runtime_status_reports_mock_mode(client: TestClient) -> None:

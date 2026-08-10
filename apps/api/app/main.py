@@ -1,13 +1,16 @@
 import os
 from datetime import UTC
+from typing import Annotated
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .domain.context import assemble_request_messages, build_model_request
 from .domain.contracts import (
-    CharacterCreateRequest,
+    ChatAssistantResponse,
     ChatRequest,
     ChatResponse,
     ConversationDeleteResponse,
@@ -18,8 +21,9 @@ from .domain.contracts import (
     MemoryDeleteResponse,
     MemoryListResponse,
     MemoryRecordView,
-    MockMedia,
-    ProfileOnboardingRequest,
+    QueenIdentifier,
+    Route,
+    ScopeIdentifier,
 )
 from .domain.conversations import (
     ConversationScopeKey,
@@ -40,9 +44,29 @@ from .domain.providers.errors import (
     ProviderServerError,
     ProviderTimeoutError,
 )
+from .domain.queens import is_registered_queen
 from .domain.router import build_router, runtime_status
 
 app = FastAPI(title="RiotQueens API", version="0.4.0")
+
+
+class NoStoreV1Middleware:
+    """Prevent browsers and intermediaries from caching stateful API responses."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or not scope.get("path", "").startswith("/v1/"):
+            await self.app(scope, receive, send)
+            return
+
+        async def send_no_store(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                MutableHeaders(scope=message)["Cache-Control"] = "no-store"
+            await send(message)
+
+        await self.app(scope, receive, send_no_store)
 
 _cors_env = os.environ.get("RIOTQUEENS_CORS_ORIGINS", "http://localhost:3000")
 _cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
@@ -53,9 +77,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(NoStoreV1Middleware)
 
 router = build_router()
-state: dict[str, object] = {}
 
 
 def _env_int_optional(name: str, default: int) -> int:
@@ -85,6 +109,19 @@ _MEMORY_MAX_PER_SCOPE = _env_int_optional("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", 32)
 
 conversation_store = InProcessConversationStore(max_turns=_CONVERSATION_MAX_TURNS)
 memory_store = InProcessMemoryStore(max_per_scope=_MEMORY_MAX_PER_SCOPE)
+
+
+def _require_registered_queen(character_id: str) -> None:
+    """Reject unknown Queens before allocating scope state or calling a provider."""
+
+    if not is_registered_queen(character_id):
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "queen_not_found",
+                "message": "Queen is not available.",
+            },
+        )
 
 
 _PROVIDER_HTTP_STATUS: dict[type[ProviderError], int] = {
@@ -145,18 +182,6 @@ async def get_runtime_status() -> dict[str, object]:
     }
 
 
-@app.post("/v1/onboarding/profile")
-async def save_profile(payload: ProfileOnboardingRequest) -> dict[str, object]:
-    state["profile"] = payload.profile
-    return {"profile": payload.profile, "persisted": True}
-
-
-@app.post("/v1/characters")
-async def create_character(payload: CharacterCreateRequest) -> dict[str, object]:
-    state["character"] = payload.config
-    return {"character": payload.config, "persisted": True}
-
-
 @app.post("/v1/chat", response_model=ChatResponse)
 async def chat(payload: ChatRequest) -> ChatResponse:
     """Send a single chat message and rebuild canonical server context.
@@ -176,12 +201,11 @@ async def chat(payload: ChatRequest) -> ChatResponse:
          system Queen prompt → server-owned memory context → bounded
          conversation history (which now ends with the trailing user
          message) → defensive current-user append if needed.
-      4. Calls the provider via the ModelRouter. On a typed provider
-         error, the user message we just appended is ROLLED BACK so
-         history is left in the state before this failed request —
-         no half-turn pollutes the conversation. The transaction lock
-         is then released and the error propagates to FastAPI's
-         exception handler.
+      4. Calls the provider via the ModelRouter. Any exception or task
+         cancellation after the user append attempts to roll that exact
+         trailing message back, so no failed half-turn pollutes history.
+         The original error is always re-raised; typed provider failures
+         still reach FastAPI's sanitized exception handler.
       5. On success, appends the assistant's validated content as a new
          assistant turn. The stored record is then pruned to the bound
          so in-process state does not grow without limit. (If the
@@ -192,8 +216,11 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 
     The client never sends a system prompt, never sends trusted prior
     messages, never sends trusted memories. The browser only sends the
-    current message and the scope identifiers.
+    current message and the scope identifiers. Model routing is also
+    server-owned: this public endpoint always uses ``FAST_CHAT``.
     """
+    _require_registered_queen(payload.character_id)
+
     conversation_scope = ConversationScopeKey(
         user_id=payload.user_id,
         character_id=payload.character_id,
@@ -210,49 +237,50 @@ async def chat(payload: ChatRequest) -> ChatResponse:
         #    becomes the trailing user turn in the bounded history.
         await conversation_store.append_user_message(conversation_scope, payload.message)
 
-        # 2. Assemble the canonical messages list.
-        messages = await assemble_request_messages(
-            character_id=payload.character_id,
-            user_id=payload.user_id,
-            conversation_id=payload.conversation_id,
-            current_message=payload.message,
-            route=payload.route,
-            conversation_store=conversation_store,
-            memory_store=memory_store,
-        )
-
-        request = build_model_request(
-            route=payload.route,
-            character_id=payload.character_id,
-            user_id=payload.user_id,
-            conversation_id=payload.conversation_id,
-            messages=messages,
-        )
-
-        # 3. Call the provider. On a typed ProviderError, roll back the
-        #    trailing user message so history is left clean. The error
-        #    itself propagates to the FastAPI exception handler above,
-        #    which maps it to a clean 5xx. The transaction lock is
-        #    released when the `async with` block exits (either via
-        #    normal return or via exception propagation).
         try:
-            response = await router.generate(request)
-        except ProviderError:
-            await conversation_store.pop_last_user_message_if_match(
-                conversation_scope, payload.message
+            # 2. Assemble the canonical messages list and build the
+            #    provider-independent internal request.
+            messages = await assemble_request_messages(
+                character_id=payload.character_id,
+                user_id=payload.user_id,
+                conversation_id=payload.conversation_id,
+                current_message=payload.message,
+                route=Route.FAST_CHAT,
+                conversation_store=conversation_store,
+                memory_store=memory_store,
             )
+
+            request = build_model_request(
+                route=Route.FAST_CHAT,
+                character_id=payload.character_id,
+                user_id=payload.user_id,
+                conversation_id=payload.conversation_id,
+                messages=messages,
+            )
+
+            # 3. Call the provider, then store exactly the validated
+            #    content returned to the public response.
+            response = await router.generate(request)
+            await conversation_store.append_assistant_message(
+                conversation_scope, response.content
+            )
+        except BaseException as error:
+            # Cancellation inherits from BaseException, not Exception.
+            # Rollback runs while this task still owns the reentrant turn
+            # lock. Preserve the original failure even if the best-effort
+            # rollback itself unexpectedly fails.
+            try:
+                await conversation_store.pop_last_user_message_if_match(
+                    conversation_scope, payload.message
+                )
+            except BaseException as rollback_error:
+                error.add_note(
+                    "Failed to roll back the trailing user turn: "
+                    f"{type(rollback_error).__name__}"
+                )
             raise
 
-        # 4. On success, store the assistant turn. The content here is
-        #    exactly what the user sees — either the real provider
-        #    content validated by OutputValidator, or the canonical
-        #    SAFE_FALLBACK_CONTENT the router substituted on ultimate
-        #    validator rejection. Both are legitimate assistant turns.
-        #    The store prunes the stored record to the bound after
-        #    this append.
-        await conversation_store.append_assistant_message(conversation_scope, response.content)
-
-    return ChatResponse(response=response)
+    return ChatResponse(response=ChatAssistantResponse(content=response.content))
 
 
 # ---------------------------------------------------------------------- #
@@ -265,9 +293,9 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     response_model=ConversationSummary,
 )
 async def get_conversation(
-    conversation_id: str,
-    user_id: str = Query(default="demo-user"),
-    character_id: str = Query(default="bardera"),
+    conversation_id: ScopeIdentifier,
+    user_id: Annotated[ScopeIdentifier, Query()],
+    character_id: Annotated[QueenIdentifier, Query()],
 ) -> ConversationSummary:
     """Return the stored messages for one conversation scope.
 
@@ -280,6 +308,8 @@ async def get_conversation(
     NOTE: there is no auth in this milestone. `user_id` and
     `character_id` are prototype scope keys, not secure identities.
     """
+    _require_registered_queen(character_id)
+
     scope = ConversationScopeKey(
         user_id=user_id,
         character_id=character_id,
@@ -321,7 +351,7 @@ async def get_conversation(
     response_model=ConversationDeleteResponse,
 )
 async def delete_conversation(
-    conversation_id: str,
+    conversation_id: ScopeIdentifier,
     payload: ConversationScopeRequest,
 ) -> ConversationDeleteResponse:
     """Clear the in-process conversation state for one scope.
@@ -334,6 +364,8 @@ async def delete_conversation(
     Returns ``{"deleted": bool, "conversation_id": str}`` where
     ``deleted`` is True iff a conversation existed and was removed.
     """
+    _require_registered_queen(payload.character_id)
+
     scope = ConversationScopeKey(
         user_id=payload.user_id,
         character_id=payload.character_id,
@@ -350,8 +382,8 @@ async def delete_conversation(
 
 @app.get("/v1/memories", response_model=MemoryListResponse)
 async def list_memories(
-    user_id: str = Query(default="demo-user"),
-    character_id: str = Query(default="bardera"),
+    user_id: Annotated[ScopeIdentifier, Query()],
+    character_id: Annotated[QueenIdentifier, Query()],
 ) -> MemoryListResponse:
     """List the explicit user-fact memories for one scope.
 
@@ -362,6 +394,8 @@ async def list_memories(
     NOTE: there is no auth in this milestone. `user_id` and
     `character_id` are prototype scope keys, not secure identities.
     """
+    _require_registered_queen(character_id)
+
     scope = MemoryScopeKey(user_id=user_id, character_id=character_id)
     records = await memory_store.list_memories(scope)
     return MemoryListResponse(
@@ -398,6 +432,8 @@ async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
     If the scope exceeds `RIOTQUEENS_MEMORY_MAX_PER_SCOPE`, the oldest
     memory is evicted (FIFO).
     """
+    _require_registered_queen(payload.character_id)
+
     scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
     record = await memory_store.add_memory(scope, payload.content)
     return MemoryRecordView(
@@ -415,7 +451,7 @@ async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
 
 @app.delete("/v1/memories/{memory_id}", response_model=MemoryDeleteResponse)
 async def delete_memory(
-    memory_id: str,
+    memory_id: ScopeIdentifier,
     payload: ConversationScopeRequest,
 ) -> MemoryDeleteResponse:
     """Delete a single explicit user-fact memory by id within a scope.
@@ -427,6 +463,8 @@ async def delete_memory(
     NOTE: there is no auth in this milestone. `user_id` and
     `character_id` are prototype scope keys, not secure identities.
     """
+    _require_registered_queen(payload.character_id)
+
     scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
     deleted = await memory_store.delete_memory(scope, memory_id)
     if not deleted:
@@ -443,12 +481,3 @@ async def delete_memory(
             },
         )
     return MemoryDeleteResponse(deleted=True, memory_id=memory_id)
-
-
-@app.get("/v1/media/mock", response_model=MockMedia)
-async def mock_media() -> MockMedia:
-    return MockMedia(
-        id="placeholder-video-001",
-        kind="video",
-        label="Video de prueba — placeholder, no generado en vivo",
-    )

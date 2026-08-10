@@ -11,7 +11,7 @@ export function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => voi
           <em>ESTÁ AHÍ.</em>
         </h1>
         <p className="hero-lead">
-          Habla, recuerda, reacciona y aparece cuando la conversación lo pide.
+          Te bardea. Te quiere. Se queda.
           <strong> Queen al frente. Complejidad escondida.</strong>
         </p>
         <div className="hero-actions">
@@ -19,20 +19,20 @@ export function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => voi
           <button className="button-ghost" onClick={onHow}>¿CÓMO?</button>
         </div>
         <div className="hero-proof">
-          <span>CONVERSACIÓN REAL</span>
-          <span>MEMORIA EN CONSTRUCCIÓN</span>
-          <span>BIBLIOTECA CURADA</span>
+          <span>ACCESO FREE</span>
+          <span>BETA ACTIVA</span>
+          <span>PERSONAJE VIRTUAL +18</span>
         </div>
       </div>
       <div className="hero-visual">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/queens/img-042-hero.jpg" alt="La Bardera en estudio con luces violetas" />
+        <img src="/queens/img-042-hero.jpg" alt="La Bardera en estudio con luces violetas" width={1536} height={640} decoding="async" fetchPriority="high" />
         <div className="hero-vignette" />
-        <div className="hero-stamp">T1<br /><span>LA BARDERA</span></div>
+        <div className="hero-stamp">BARDERA<br /><span>QUEEN DE LANZAMIENTO</span></div>
         <div className="live-card">
-          <span>LIVE STATUS</span>
-          <strong><i /> BETA ONLINE</strong>
-          <p>“Dale. Contame desde el principio, sin versión prolija.”</p>
+          <span>ACCESO FREE / BETA</span>
+          <strong><i /> CHAT DISPONIBLE</strong>
+          <p>NO TE CLAVA EL VISTO.</p>
         </div>
       </div>
     </section>

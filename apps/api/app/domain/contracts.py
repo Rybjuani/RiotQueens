@@ -1,20 +1,28 @@
 from datetime import datetime
 from enum import StrEnum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-
-class ResponseStyle(StrEnum):
-    NATURAL = "natural"
-    PLAYFUL = "playful"
-    CALM = "calm"
-
-
-class Level(StrEnum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
+# Public scope identifiers are opaque tokens, not free-form text. Bounding
+# them at the API contract prevents oversized, whitespace-variant keys from
+# reaching in-process store dictionaries and their per-scope lock maps.
+ScopeIdentifier = Annotated[
+    str,
+    StringConstraints(
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+    ),
+]
+QueenIdentifier = Annotated[
+    str,
+    StringConstraints(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9-]{0,63}$",
+    ),
+]
 
 
 class Route(StrEnum):
@@ -29,53 +37,6 @@ class Route(StrEnum):
 class MessageInput(BaseModel):
     role: str = Field(pattern="^(system|user|assistant|tool)$")
     content: str = Field(min_length=1, max_length=20_000)
-
-
-class UserPreferenceProfile(BaseModel):
-    language: str = "es"
-    locale: str = "es-AR"
-    response_style: ResponseStyle = ResponseStyle.NATURAL
-    verbosity: Level = Level.MEDIUM
-    stage_directions: bool = False
-    translation_overlay: bool = False
-    humor_style: str = "cálido"
-    initiative_level: Level = Level.MEDIUM
-    romantic_intensity: Level = Level.MEDIUM
-    sensual_intensity: Level = Level.LOW
-    notification_preferences: dict[str, Any] = Field(default_factory=dict)
-    visual_preferences: dict[str, Any] = Field(default_factory=dict)
-    agent_interests: list[str] = Field(default_factory=list)
-
-
-class ProfileOnboardingRequest(BaseModel):
-    profile: UserPreferenceProfile
-
-
-class CharacterConfig(BaseModel):
-    name: str = Field(min_length=1, max_length=80)
-    identity: str = Field(min_length=1, max_length=500)
-    personality_traits: list[str] = Field(min_length=1, max_length=12)
-    relationship_dynamic: str
-    speech_style: str
-    initiative_level: Level = Level.MEDIUM
-    sensual_intensity: Level = Level.LOW
-    boundaries: list[str] = Field(default_factory=list)
-    capabilities: list[str] = Field(default_factory=list)
-    visual_style: str
-    voice_style: str = "conversacional"
-
-
-class CharacterCreateRequest(BaseModel):
-    user_id: str = "demo-user"
-    config: CharacterConfig
-
-
-class SessionOverride(BaseModel):
-    scope: str = Field(pattern="^(session|conversation|character|global)$")
-    starts_at: datetime
-    expires_at: datetime | None = None
-    overrides: dict[str, Any]
-    reason: str = Field(min_length=1, max_length=300)
 
 
 class ModelRequest(BaseModel):
@@ -117,23 +78,24 @@ class ModelResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    user_id: str = "demo-user"
-    character_id: str = "bardera"
-    conversation_id: str = "demo-conversation"
+    """Public chat input; model routing remains a server responsibility."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: ScopeIdentifier
+    character_id: QueenIdentifier
+    conversation_id: ScopeIdentifier
     message: str = Field(min_length=1, max_length=4_000)
-    route: Route = Route.FAST_CHAT
+
+
+class ChatAssistantResponse(BaseModel):
+    """Stable public subset of an internal model response."""
+
+    content: str
 
 
 class ChatResponse(BaseModel):
-    response: ModelResponse
-
-
-class MockMedia(BaseModel):
-    id: str
-    kind: str
-    label: str
-    is_placeholder: bool = True
-    generated_in_realtime: bool = False
+    response: ChatAssistantResponse
 
 
 # ---------------------------------------------------------------------- #
@@ -177,15 +139,10 @@ class ConversationSummary(BaseModel):
 
 
 class ConversationScopeRequest(BaseModel):
-    """Body for scope-keyed conversation endpoints.
+    """Explicit scope body for conversation and memory deletion."""
 
-    `user_id` defaults to the same prototype value `ChatRequest` uses
-    so the chat flow stays consistent without auth. `character_id`
-    defaults to ``"bardera"`` to match the canonical Queen.
-    """
-
-    user_id: str = "demo-user"
-    character_id: str = "bardera"
+    user_id: ScopeIdentifier
+    character_id: QueenIdentifier
 
 
 class MemoryCreateRequest(BaseModel):
@@ -202,8 +159,8 @@ class MemoryCreateRequest(BaseModel):
     memory section.
     """
 
-    user_id: str = "demo-user"
-    character_id: str = "bardera"
+    user_id: ScopeIdentifier
+    character_id: QueenIdentifier
     content: str = Field(min_length=1, max_length=500)
 
 

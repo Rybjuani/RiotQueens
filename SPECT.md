@@ -252,18 +252,23 @@ El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una in
 ### Estado verificado del código actual
 
 - existen web Next.js y API FastAPI;
-- el frontend porta la composición visual del primer landing y el flujo interactivo del segundo;
-- el roster de universo tiene cinco Queens canónicas, pero sólo `bardera` está implementada;
+- el frontend porta la composición visual del primer landing y el flujo interactivo del segundo, presenta la beta activa como T0/free y mantiene T1–T3 explícitamente pendientes;
+- el roster de universo tiene cinco Queens canónicas, pero sólo `bardera` está implementada; la API rechaza cualquier Queen no registrada antes de crear estado o invocar un proveedor;
 - existe abstracción de proveedor y adaptador OpenAI-compatible;
+- `/v1/chat` conserva la selección de ruta del lado servidor, usa `FAST_CHAT` y no expone los diagnósticos internos del proveedor en su respuesta pública;
 - existen conversación multi-turn y memorias explícitas en proceso;
 - existen locks por scope, errores tipados, retries y pruebas;
+- los scopes públicos son explícitos y acotados; la web genera identificadores aleatorios de usuario prototipo y conversación por pestaña, los conserva en `sessionStorage` y no los presenta como autenticación;
+- el chat recupera del servidor el historial visible de esa sesión al abrirse y reconcilia el estado optimista después de cada envío;
+- los endpoints WIP sin consumidor para onboarding, personajes configurables y media mock no forman parte de la API pública;
 - PostgreSQL y Redis son objetivos, pero no se ejecutan hasta que adaptadores reales los consuman;
 - Caddy publica web y API bajo un solo origen y enruta `/api/*` hacia FastAPI;
-- no hay autenticación real;
+- no hay autenticación real ni clickwrap versionado implementado;
 - conversación y memoria se pierden al reiniciar el proceso;
 - no hay todavía storage privado, entitlements, créditos ni pagos implementados;
 - el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
-- el flujo público, responsive, chat contra API y páginas legales pasaron QA local;
+- las imágenes públicas declaran dimensiones intrínsecas y las que están debajo del primer viewport usan carga diferida;
+- lint y build cubren la web y sus páginas estáticas; el hero vigente fue inspeccionado en Chrome headless a `1440×1200` y `320×900`, mientras el contrato de chat se verifica por transporte ASGI; todavía no existe una suite E2E automatizada del frontend;
 - las imágenes provisionales no constituyen entrega premium ni sustituyen autorización de media;
 - Docker Compose y los builds de API y web fueron validados en el VPS para la release `570ed7e`; toda release posterior requiere su propia validación.
 
@@ -371,7 +376,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 
 ### Pendiente
 
-- resolver auth y persistencia durable;
+- definir el mecanismo de auth y resolver persistencia durable;
+- aprobar jurisdicciones, textos legales versionados, hashes y retención antes de implementar el clickwrap de acceso;
 - definir storage/CDN y autorización de media;
 - cerrar pricing, límites, beneficios por tier y economía de créditos;
 - consolidar masters visuales y estado curatorial de assets;

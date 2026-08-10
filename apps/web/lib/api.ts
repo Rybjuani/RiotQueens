@@ -1,6 +1,6 @@
 /**
  * Typed client for the canonical FastAPI backend.
- * Contract: POST /v1/chat → ChatResponse { response: { content, validation, ... } }
+ * Public contract: POST /v1/chat → ChatResponse { response: { content } }
  *
  * Per Issue #3: the frontend is a client only. Chat must go through the
  * existing FastAPI backend (ModelRouter / Provider abstraction /
@@ -10,7 +10,7 @@
  * the canonical Queen personality.
  */
 
-import { getConversationId } from "@/lib/session";
+import { getConversationId, getPrototypeUserId } from "@/lib/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -19,26 +19,9 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface OutputValidation {
-  is_valid: boolean;
-  language_ok: boolean;
-  encoding_ok: boolean;
-  not_truncated: boolean;
-  not_repetitive: boolean;
-  no_internal_leak: boolean;
-  character_consistent: boolean;
-  reasons: string[];
-}
-
 export interface ChatResponse {
   response: {
-    provider: string;
-    model: string;
     content: string;
-    usage: { input_tokens: number; output_tokens: number };
-    latency_ms: number;
-    validation: OutputValidation | null;
-    retry_count: number;
   };
 }
 
@@ -56,6 +39,7 @@ export async function sendChat(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message,
+      user_id: getPrototypeUserId(),
       character_id: opts?.character_id ?? "bardera",
       conversation_id: getConversationId(),
     }),
@@ -71,7 +55,7 @@ export async function sendChat(
 
 /**
  * Clear the server-side conversation history for the current browser
- * session. This is a prototype diagnostic — it does NOT clear other
+ * session. This is the visible reset action — it does NOT clear other
  * users' conversations, other characters, or other conversation ids.
  *
  * The server returns `{deleted: bool, conversation_id: string}`.
@@ -90,7 +74,7 @@ export async function clearConversation(
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        user_id: "demo-user",
+        user_id: getPrototypeUserId(),
         character_id: opts?.character_id ?? "bardera",
       }),
       signal: opts?.signal,
@@ -103,10 +87,10 @@ export async function clearConversation(
 }
 
 /**
- * Inspect the server-side conversation history for the current browser
- * session. Used by the dev diagnostic panel to verify multi-turn
- * continuity. Returns the stored messages (user + assistant only — the
- * canonical Queen system prompt is NEVER stored and NEVER returned).
+ * Load the server-side conversation history for the current browser
+ * session. The visible chat uses it on mount and to reconcile sends.
+ * Returns stored user/assistant messages only — the canonical Queen
+ * system prompt is NEVER stored and NEVER returned.
  */
 export interface ConversationMessageView {
   id: string;
@@ -128,10 +112,11 @@ export async function getConversation(
   opts?: { character_id?: string; signal?: AbortSignal },
 ): Promise<ConversationSummary> {
   const res = await fetch(
-    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?user_id=demo-user&character_id=${encodeURIComponent(
-      opts?.character_id ?? "bardera",
-    )}`,
-    { signal: opts?.signal },
+    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?${new URLSearchParams({
+      user_id: getPrototypeUserId(),
+      character_id: opts?.character_id ?? "bardera",
+    }).toString()}`,
+    { signal: opts?.signal, cache: "no-store" },
   );
   if (!res.ok) {
     throw new Error(`Get conversation API error: ${res.status} ${res.statusText}`);

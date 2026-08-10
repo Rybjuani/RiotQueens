@@ -31,13 +31,15 @@ class MockModelProvider:
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         prompt = request.messages[-1].content
+        content = f"Te leo. Recibí: “{prompt}” ¿Seguimos desde ahí?"
         return ModelResponse(
             provider=self.name,
             model=self.model,
-            content=(
-                f"Te leo. Soy la anfitriona de prueba y recibí: “{prompt}” ¿Seguimos desde ahí?"
+            content=content,
+            usage=Usage(
+                input_tokens=len(prompt.split()),
+                output_tokens=len(content.split()),
             ),
-            usage=Usage(input_tokens=len(prompt.split()), output_tokens=18),
         )
 
 

@@ -19,12 +19,12 @@ import asyncio
 import importlib
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
 from app.domain.providers.errors import ProviderContentBlockedError
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
+from tests.asgi_test_client import SyncASGIClient as TestClient
 
 # ---------------------------------------------------------------------- #
 # Test fixtures — a capturing MockProvider + a fresh FastAPI app per test
@@ -130,7 +130,9 @@ async def test_A_first_message_provider_receives_system_and_user(fresh_app) -> N
     )
     assert resp.status_code == 200
     assert len(capturing.captured_requests) == 1
-    msgs = capturing.captured_requests[0].messages
+    request = capturing.captured_requests[0]
+    assert request.route is Route.FAST_CHAT
+    msgs = request.messages
     roles = [m.role for m in msgs]
     # Exactly [system, user] — no prior history, no memory block.
     assert roles == ["system", "user"]
@@ -250,40 +252,95 @@ async def test_D_different_user_id_isolated(fresh_app) -> None:
 
 
 # ---------------------------------------------------------------------- #
-# E. Different character_id → fully isolated
+# E. Unknown Queens are rejected before touching runtime state
 # ---------------------------------------------------------------------- #
 
 
 @pytest.mark.asyncio
-async def test_E_different_character_id_isolated(fresh_app) -> None:
-    client, capturing, _ = fresh_app
-    client.post(
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        (
+            "POST",
+            "/v1/chat",
+            {
+                "message": "unknown queen message",
+                "character_id": "other-character",
+                "user_id": "user-E",
+                "conversation_id": "shared-conv",
+            },
+        ),
+        (
+            "GET",
+            "/v1/conversations/shared-conv?user_id=user-E&character_id=other-character",
+            None,
+        ),
+        (
+            "DELETE",
+            "/v1/conversations/shared-conv",
+            {"user_id": "user-E", "character_id": "other-character"},
+        ),
+        (
+            "GET",
+            "/v1/memories?user_id=user-E&character_id=other-character",
+            None,
+        ),
+        (
+            "POST",
+            "/v1/memories",
+            {
+                "user_id": "user-E",
+                "character_id": "other-character",
+                "content": "unknown queen memory",
+            },
+        ),
+        (
+            "DELETE",
+            "/v1/memories/00000000-0000-0000-0000-000000000000",
+            {"user_id": "user-E", "character_id": "other-character"},
+        ),
+    ],
+)
+async def test_E_unknown_queen_rejected_before_provider_or_store_access(
+    fresh_app, method: str, path: str, payload: dict[str, str] | None
+) -> None:
+    client, capturing, main_mod = fresh_app
+
+    resp = client.request(method, path, json=payload)
+
+    assert resp.status_code == 404
+    assert resp.json() == {
+        "detail": {
+            "code": "queen_not_found",
+            "message": "Queen is not available.",
+        }
+    }
+    assert capturing.captured_requests == []
+    assert main_mod.conversation_store._records == {}
+    assert main_mod.conversation_store._locks == {}
+    assert main_mod.memory_store._records == {}
+    assert main_mod.memory_store._locks == {}
+
+
+@pytest.mark.asyncio
+async def test_public_chat_route_cannot_be_selected_by_client(fresh_app) -> None:
+    client, capturing, main_mod = fresh_app
+
+    resp = client.post(
         "/v1/chat",
         json={
-            "message": "bardera msg",
+            "message": "try vision route",
             "character_id": "bardera",
-            "user_id": "user-E",
-            "conversation_id": "shared-conv",
+            "user_id": "user-route",
+            "conversation_id": "conversation-route",
+            "route": "vision",
         },
     )
-    client.post(
-        "/v1/chat",
-        json={
-            "message": "other msg",
-            "character_id": "other-character",
-            "user_id": "user-E",
-            "conversation_id": "shared-conv",
-        },
-    )
-    # The second request (character=other) must NOT contain the first
-    # request's messages.
-    msgs_2 = capturing.captured_requests[1].messages
-    contents = [m.content for m in msgs_2]
-    assert "bardera msg" not in contents
-    assert "other msg" in contents
-    # And the second request should NOT have a system prompt (because
-    # "other-character" is not a registered Queen — graceful).
-    assert msgs_2[0].role == "user"
+
+    assert resp.status_code == 422
+    assert capturing.captured_requests == []
+    assert main_mod.conversation_store._records == {}
+    assert main_mod.conversation_store._locks == {}
 
 
 # ---------------------------------------------------------------------- #
@@ -697,7 +754,6 @@ async def test_N_concurrent_requests_preserve_pair_integrity(fresh_app) -> None:
     # synchronous, so we go directly through the async FastAPI app via
     # httpx.AsyncClient + ASGITransport for true concurrency.
     import httpx
-    from starlette.testclient import TestClient as _TC  # noqa
 
     # Use httpx.AsyncClient pointed at the ASGI app.
     transport = httpx.ASGITransport(app=client.app)
@@ -804,7 +860,6 @@ async def test_safe_fallback_content_is_stored_as_assistant_turn(fresh_app) -> N
         },
     )
     assert resp.status_code == 200
-    assert resp.json()["response"]["provider"] == "server-fallback"
     assert "no la conversación" in resp.json()["response"]["content"]
 
     # The fallback content must be stored as the assistant turn.
@@ -843,7 +898,6 @@ async def test_provider_guardrail_block_preserves_pair_and_character(fresh_app) 
 
     assert resp.status_code == 200
     response = resp.json()["response"]
-    assert response["provider"] == "server-fallback"
     assert "Gemini" not in response["content"]
 
     convo = client.get(

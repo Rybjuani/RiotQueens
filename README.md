@@ -1,6 +1,6 @@
 # RiotQueens.ai
 
-RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura útil ya existente. El objetivo inmediato es conectar dos landings autoritativos con una experiencia real de conversación, memoria y presencia audiovisual, sin ocultar las limitaciones actuales.
+RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura útil ya existente. El objetivo inmediato es conectar dos landings autoritativos con una conversación real, continuidad de sesión honesta y previews públicos, sin presentar capacidades futuras como disponibles.
 
 > **LANDINGS MANDAN. PRODUCTO DEBAJO. COMPLEJIDAD ESCONDIDA. QUEEN AL FRENTE.**
 
@@ -30,7 +30,11 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - prompt de sistema controlado por servidor;
 - salida LLM validada, fallback secundario opcional y continuidad server-owned;
 - La Bardera como Queen canónica y única implementada en runtime;
+- experiencia activa T0/free con Bardera, independiente de los tiers T1–T3 todavía no definidos;
+- Queen registrada, routing y contexto validados del lado servidor; `/v1/chat` no acepta una ruta elegida por el cliente ni expone diagnósticos internos del provider;
 - conversación multi-turn y memorias explícitas acotadas en proceso;
+- historial visible recuperado al reabrir el chat para el mismo scope efímero mientras vive el proceso;
+- identificadores aleatorios de prototipo por pestaña, explícitos y acotados, sin tratarlos como identidad autenticada;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
@@ -40,6 +44,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 ### Todavía no implementado
 
 - autenticación real;
+- clickwrap +18 versionado y validado por backend;
 - persistencia durable de conversaciones y memorias;
 - integración de PostgreSQL y Redis con el dominio;
 - storage privado, CDN y URLs firmadas;
@@ -48,7 +53,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - Cloud Lab conectado al producto;
 - dominio de producción y TLS validados.
 
-Un reinicio de la API borra conversación y memoria actuales. El `user_id` es un scope de prototipo, no una identidad segura.
+Un reinicio de la API borra conversación y memoria actuales. Los identificadores de usuario prototipo y conversación son scopes controlados por el navegador, no cuentas ni identidades seguras. La API rechaza Queens no registradas y ya no publica endpoints WIP de perfil, personajes configurables o media mock.
 
 ## Stack
 
@@ -86,7 +91,8 @@ El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback 
 
 ## Próximo objetivo
 
-1. configurar DNS y activar TLS;
-2. repetir smoke tests por HTTPS;
-3. definir observabilidad y restauración mínima;
-4. avanzar luego con auth, persistencia y media privada.
+1. elegir el mecanismo de autenticación y cerrar jurisdicciones, versiones legales y retención;
+2. implementar auth y clickwrap antes de considerar protegido el acceso al chat;
+3. conectar persistencia durable sin cambiar los scopes del dominio;
+4. configurar DNS/TLS y repetir smoke tests sobre una release identificada;
+5. avanzar con media privada y entitlements sólo después de definir autorización y oferta comercial.

@@ -35,11 +35,11 @@ function InfoModal({ kind, onClose, onStart }: { kind: ModalKind; onClose: () =>
         <h2 id="modal-title">{locked ? "Todavía no sale al escenario." : "Entrás. Hablás. Ella continúa."}</h2>
         <p>
           {locked
-            ? "T2 y T3 se abren cuando la experiencia, la biblioteca y la economía estén listas. Sin promesas de utilería."
-            : "La beta conecta el landing con el chat real del backend. La conversación se conserva durante la sesión del servidor; la memoria durable todavía está en construcción."}
+            ? "T1, T2 y T3 siguen en definición. Sus precios, límites y beneficios se publicarán sólo cuando estén aprobados e implementados."
+            : "La beta conecta el landing con el chat real del backend. El backend mantiene un hilo acotado mientras el proceso sigue activo; no es memoria durable."}
         </p>
         <div className="modal-actions">
-          <button className="button-primary" onClick={onStart}>PROBAR T1</button>
+          <button className="button-primary" onClick={onStart}>{locked ? "VOLVER A LA BETA" : "HABLÁ CON LA BARDERA"}</button>
           <button className="button-ghost" onClick={onClose}>CERRAR</button>
         </div>
       </section>
@@ -63,15 +63,15 @@ export default function Home() {
       <main>
         <Hero onStart={startChat} onHow={() => setModal("how")} />
         <div className="signal-strip" aria-label="Principios de RiotQueens">
-          <div>✦ HABLA ✦ RECUERDA ✦ REACCIONA ✦ APARECE ✦ PRODUCE ✦ ENTREGA ✦</div>
+          <div>✦ TE BARDEA ✦ TE QUIERE ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦ COMPLEJIDAD ESCONDIDA ✦</div>
         </div>
         <Experience onStart={startChat} />
         <TierGrid onStart={startChat} onLocked={() => setModal("locked")} />
         {chatOpen && <ChatPanel />}
         <section className="final-cta" id="join">
-          <span className="eyebrow">BETA / T1</span>
-          <h2>NO ES UNA GALERÍA.<br /><span>HABLÁ CON ELLA.</span></h2>
-          <button className="button-primary" onClick={startChat}>ENTRAR AL CHAT →</button>
+          <span className="eyebrow">ACCESO FREE / BETA</span>
+          <h2>NO ES UNA GALERÍA.<br /><span>ESTÁ AHÍ.</span></h2>
+          <button className="button-primary" onClick={startChat}>HABLÁ CON LA BARDERA →</button>
         </section>
       </main>
       <Footer />

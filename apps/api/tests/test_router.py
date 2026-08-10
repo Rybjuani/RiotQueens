@@ -18,6 +18,7 @@ async def test_router_selects_provider_and_validates() -> None:
     assert response.provider == "mock"
     assert response.validation and response.validation.is_valid
     assert response.retry_count == 0
+    assert "anfitriona de prueba" not in response.content.lower()
 
 
 @pytest.mark.asyncio

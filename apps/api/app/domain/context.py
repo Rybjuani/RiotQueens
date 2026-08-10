@@ -19,60 +19,23 @@ messages, never sends trusted memories. The browser only sends the
 current message and the scope identifiers. The server rebuilds the
 full canonical context from its own state.
 
-State integrity (Issue #5)
----------------------------
-- The user message is appended to the conversation store BEFORE the
-  provider is called. If the provider fails (timeout / 429 / 5xx /
-  auth / connect / malformed), the chat handler MUST roll back the
-  user message so no half-turn pollutes history. The handler does this
-  explicitly via `pop_last_user_message` — see `conversations.py` for
-  the rollback helper.
+State integrity
+---------------
+The chat handler owns the complete turn transaction for one conversation:
 
-  Wait — actually, rolling back the user message is wrong: if the
-  client retries the same message, we would store the user message
-  twice. The CORRECT integrity model is:
+1. acquire the per-conversation reentrant lock;
+2. append the current user message;
+3. assemble server-owned context and call the provider while still holding
+   that conversation lock;
+4. append the validated assistant turn on success, or remove the just-added
+   user message on any later exception or task cancellation;
+5. release the lock.
 
-    - Append the user message to the store BEFORE calling the provider.
-    - Call the provider. If it raises, the user message stays in the
-      store (it represents what the user actually said), but NO
-      assistant turn is appended. The next request from the user
-      will rebuild history with that trailing user message — and
-      `_bound_pairs` preserves a trailing unpaired user turn, so the
-      next request will re-send it as context.
-
-      Actually that's also wrong — if the user retries with a DIFFERENT
-      message, we don't want the failed one lingering as the last turn.
-
-    The simplest correct model is:
-      - Append user message BEFORE provider call.
-      - If provider succeeds → append assistant turn, done.
-      - If provider fails → pop the user message we just appended, so
-        history is left in the state it was BEFORE this request. The
-        user can retry; if they retry with the same message, the
-        re-append produces a clean (user, assistant) pair on success.
-        If they retry with a different message, there's no leftover
-        failed turn.
-
-  This is the model implemented here. `pop_last_user_message_if_match`
-  removes the last message if and only if it is a user message with
-  the given content (defensive — if some other concurrent request
-  appended a different user message in between, we don't pop that
-  one).
-
-Actually, given the per-scope `asyncio.Lock` in the conversation
-store, two concurrent requests to the same conversation are
-serialized at the append level. So the simpler model is:
-
-  - Append user message under lock.
-  - Call provider (outside the conversation lock — provider call is
-    slow).
-  - If provider succeeds → append assistant turn under lock.
-  - If provider fails → pop the trailing user message under lock
-    (only if it matches the content we appended).
-
-This keeps history clean: a failed request leaves no trace, so the
-next retry starts from the same state. The pop helper is in
-`conversations.py` as `pop_last_user_message_if_match`.
+Holding the lock across the provider call deliberately serializes turns for
+the same conversation, while independent conversation scopes continue in
+parallel. A failed request therefore leaves no half-turn behind and a retry
+starts from the last confirmed history. See `main.py` for orchestration and
+`conversations.py` for the transaction and rollback contracts.
 """
 
 from __future__ import annotations

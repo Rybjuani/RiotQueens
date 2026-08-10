@@ -4,6 +4,8 @@
 
 **Fecha:** 2026-08-09
 
+**Enmendado:** 2026-08-10
+
 ## Contexto
 
 Un proveedor puede devolver un bloqueo, una negativa genérica, su propia identidad o una respuesta técnica fuera de personaje. Si ese texto entra al historial como Queen, rompe continuidad y puede contaminar turnos posteriores. Un error de transporte tampoco debe aparecer como si lo hubiera dicho el personaje.
@@ -17,6 +19,7 @@ Un proveedor puede devolver un bloqueo, una negativa genérica, su propia identi
 - Si ningún proveedor entrega una salida válida, el servidor devuelve y almacena un fallback corto registrado para esa Queen.
 - Un fallo técnico sin respuesta de modelo permanece como voz de sistema; el frontend no inventa una burbuja de Queen.
 - Prompts, memoria y scope nunca se reemplazan por texto devuelto por el proveedor.
+- El router conserva provider, modelo, uso, latencia, validación y retries como diagnósticos internos; la respuesta pública de chat serializa únicamente el contenido aprobado para el usuario.
 
 ## Consecuencias
 
@@ -24,3 +27,4 @@ Un proveedor puede devolver un bloqueo, una negativa genérica, su propia identi
 - El historial conserva pares completos cuando el usuario recibe un fallback server-owned.
 - La detección determinista no sustituye la política de producto ni autoriza contenido.
 - Cada Queen nueva debe registrar prompt y fallback antes de publicarse.
+- Cambiar de proveedor o fallback no altera el contrato público del chat ni expone backstage al navegador.

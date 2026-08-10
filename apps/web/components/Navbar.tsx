@@ -17,7 +17,7 @@ export function Navbar({ onCta }: { onCta: () => void }) {
       <nav className="site-nav" aria-label="Navegación principal">
         <a className="brand-lockup" href="#top" aria-label="RiotQueens.ai, inicio">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/riotqueens-logo.jpeg" alt="" />
+          <img src="/brand/riotqueens-logo.jpeg" alt="" width={1024} height={1024} decoding="async" />
           <span>RiotQueens<span>.ai</span></span>
         </a>
         <div className="nav-status"><b>+18</b><span>VIRTUAL</span><span>BETA</span></div>

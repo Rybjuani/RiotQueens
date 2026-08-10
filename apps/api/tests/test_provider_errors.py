@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route
 from app.domain.providers.errors import (
@@ -17,6 +16,7 @@ from app.domain.providers.errors import (
     ProviderTimeoutError,
 )
 from app.domain.router import ModelRouter
+from tests.asgi_test_client import SyncASGIClient as TestClient
 
 
 class SequenceProvider:
@@ -82,10 +82,19 @@ def _client_with_provider(provider: SequenceProvider, *, retries: int = 1) -> Te
     return TestClient(main_mod.app, raise_server_exceptions=False)
 
 
+def _chat_payload() -> dict[str, str]:
+    return {
+        "message": "hola",
+        "character_id": "bardera",
+        "user_id": "provider-error-user",
+        "conversation_id": "provider-error-conversation",
+    }
+
+
 def test_timeout_exhaustion_maps_to_504() -> None:
     provider = SequenceProvider([ProviderTimeoutError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
+        "/v1/chat", json=_chat_payload()
     )
     assert provider.calls == 2
     assert response.status_code == 504
@@ -95,7 +104,7 @@ def test_timeout_exhaustion_maps_to_504() -> None:
 def test_connect_exhaustion_maps_to_503() -> None:
     provider = SequenceProvider([ProviderConnectError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
+        "/v1/chat", json=_chat_payload()
     )
     assert provider.calls == 2
     assert response.status_code == 503
@@ -106,7 +115,7 @@ def test_connect_exhaustion_maps_to_503() -> None:
 def test_provider_auth_error_does_not_retry_or_expose_upstream_auth(error: Exception) -> None:
     provider = SequenceProvider([error])
     response = _client_with_provider(provider, retries=3).post(
-        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
+        "/v1/chat", json=_chat_payload()
     )
     assert provider.calls == 1
     assert response.status_code == 503
@@ -117,7 +126,7 @@ def test_provider_auth_error_does_not_retry_or_expose_upstream_auth(error: Excep
 def test_invalid_upstream_response_is_bounded_retry_then_502() -> None:
     provider = SequenceProvider([ProviderInvalidResponseError()])
     response = _client_with_provider(provider, retries=1).post(
-        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
+        "/v1/chat", json=_chat_payload()
     )
     assert provider.calls == 2
     assert response.status_code == 502
@@ -138,9 +147,10 @@ def test_invalid_upstream_response_is_bounded_retry_then_502() -> None:
 def test_error_responses_never_leak_secret_material(error: Exception) -> None:
     provider = SequenceProvider([error])
     response = _client_with_provider(provider, retries=0).post(
-        "/v1/chat", json={"message": "hola", "character_id": "bardera"}
+        "/v1/chat", json=_chat_payload()
     )
     body = response.text.lower()
+    assert response.headers["cache-control"] == "no-store"
     assert "authorization" not in body
     assert "bearer" not in body
     assert "sk-super-secret-do-not-leak" not in body

@@ -3,7 +3,7 @@ import "./styles.css";
 
 export const metadata: Metadata = {
   title: "RiotQueens.ai — Queen al frente",
-  description: "Conversación, memoria y presencia audiovisual con identidad propia.",
+  description: "Experiencia de entretenimiento +18 con personajes virtuales y ficticios que interactúan mediante IA.",
 };
 
 export default function RootLayout({

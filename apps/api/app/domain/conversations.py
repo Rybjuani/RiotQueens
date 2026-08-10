@@ -341,7 +341,7 @@ class InProcessConversationStore:
                 messages = await assemble_request_messages(...)
                 response = await router.generate(request)
                 await conversation_store.append_assistant_message(scope, response.content)
-                # OR on provider failure:
+                # OR on any post-append failure or cancellation:
                 await conversation_store.pop_last_user_message_if_match(scope, message)
 
         The lock is REENTRANT so the public methods called inside the
@@ -450,13 +450,12 @@ class InProcessConversationStore:
         with the given ``content``, remove it and return True. Otherwise
         return False and leave the history untouched.
 
-        This is used by the chat handler when the provider raises a typed
-        error: the user message we appended just before the call is
-        popped so history is left in the state it was BEFORE the failed
-        request. A subsequent retry re-appends the same user message
-        and, if the provider succeeds, appends a clean assistant turn
-        — producing a complete (user, assistant) pair with no leftover
-        failed half-turn.
+        This is used by the chat handler whenever context assembly,
+        request construction, provider execution or assistant storage
+        fails after the user append. The user message is popped so
+        history is left in the state it was BEFORE the failed request.
+        A subsequent retry can then produce a complete pair without a
+        leftover failed half-turn.
 
         After the pop, the stored record is re-pruned to the bound
         defensively (though it should already be bounded from the
