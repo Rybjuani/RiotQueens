@@ -3,10 +3,11 @@
 **Estado:** aceptado
 
 **Fecha:** 2026-08-09
+**Enmendado:** 2026-08-10
 
 ## Contexto
 
-RiotQueens.ai es una experiencia de entretenimiento `+18` con personajes ficticios generados mediante IA. El producto necesita comunicarlo de forma breve, registrar una aceptación auditable y evitar que chat, cuenta o media premium dependan de una confirmación exclusivamente visual o almacenada sólo en el navegador.
+RiotQueens.ai es una experiencia de entretenimiento `+18` con personajes virtuales y ficticios que interactúan mediante inteligencia artificial. El producto necesita comunicarlo de forma breve, registrar una aceptación auditable y evitar que chat, cuenta o media premium dependan de una confirmación exclusivamente visual o almacenada sólo en el navegador.
 
 La aceptación aporta evidencia, pero no reemplaza obligaciones de privacidad, seguridad, propiedad intelectual ni requisitos reforzados que pueda imponer una jurisdicción.
 
@@ -52,4 +53,6 @@ Contrato conceptual de entrada:
 - Borrar cookies o modificar el frontend no concede acceso protegido.
 - Auth real es requisito previo para asociar la aceptación a una identidad durable.
 - Debe definirse una política de retención, acceso y eliminación compatible con las jurisdicciones habilitadas.
+- Los claims públicos sobre privacidad, tracking, cookies, almacenamiento, venta de datos, pagos o cancelación requieren comportamiento real de la implementación, configuración real de producción y política o texto legal vigente cuando corresponda.
+- La privacidad no cambia por tier salvo futura decisión explícita del owner.
 - Una autodeclaración es el baseline del MVP, no una garantía universal de cumplimiento para todo país o categoría futura.
