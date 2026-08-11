@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { queens, type Queen } from "@/lib/queen";
 
 export function QueenRoster({
@@ -19,10 +21,9 @@ export function QueenRoster({
           <span>CERO MEMORIA COMPARTIDA.</span>
         </h2>
         <p>
-          Cada Queen es un personaje aparte: su chat, su hilo y su memoria no se
-          mezclan con las demás. Las grillas son previews provisionales para que
-          veas el ADN en pantalla y reordenes después. Solo Bardera habla en esta
-          beta.
+          Cada Queen es un personaje aparte: chat, hilo y memoria no se mezclan.
+          DETAILS abre el manual de identidad (deck NotebookLM/Flow). Solo Bardera
+          tiene el primero listo; las otras cuatro ya tienen el slot reservado.
         </p>
       </div>
 
@@ -41,6 +42,7 @@ export function QueenRoster({
 
 function QueenCard({ queen, onStart }: { queen: Queen; onStart: () => void }) {
   const live = queen.status === "live";
+  const profileReady = queen.profile.status === "ready";
   return (
     <article className={live ? "queen-card live" : "queen-card"} id={`queen-${queen.id}`}>
       <header className="queen-card-head">
@@ -49,27 +51,32 @@ function QueenCard({ queen, onStart }: { queen: Queen; onStart: () => void }) {
           <h3>{queen.name}</h3>
           <p>{queen.tagline}</p>
         </div>
-        <button className={live ? "button-primary" : "button-ghost"} onClick={onStart}>
-          {live ? "HABLÁ CON ELLA →" : "PRONTO"}
-        </button>
+        <div className="queen-card-actions">
+          <Link className="button-ghost queen-link" href={`/queen/${queen.id}`}>
+            {profileReady ? "DETAILS →" : "PROFILE SLOT"}
+          </Link>
+          <button className={live ? "button-primary" : "button-ghost"} onClick={onStart}>
+            {live ? "HABLÁ CON ELLA →" : "PRONTO"}
+          </button>
+        </div>
       </header>
       <div className="queen-slots" aria-label={`Previews de ${queen.name}`}>
-        {queen.slots.map((slot) => (
+        {queen.slots.map((imageSlot) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={slot.src}
-            src={slot.src}
-            alt={slot.alt}
-            width={slot.width}
-            height={slot.height}
+            key={imageSlot.src}
+            src={imageSlot.src}
+            alt={imageSlot.alt}
+            width={imageSlot.width}
+            height={imageSlot.height}
             loading="lazy"
             decoding="async"
           />
         ))}
       </div>
       <p className="queen-card-note">
-        {queen.slots.length} preview{queen.slots.length === 1 ? "" : "s"} · memoria aislada por
-        personaje · orden provisional
+        {queen.slots.length} preview{queen.slots.length === 1 ? "" : "s"} · perfil{" "}
+        {profileReady ? "listo" : "slot vacío"} · memoria aislada · orden provisional
       </p>
     </article>
   );

@@ -1,9 +1,12 @@
 /**
- * Frontend Queen registry for presence, galleries, and chat entry points.
+ * Frontend Queen registry for presence, galleries, profiles, and chat.
  *
  * Backend runtime still owns prompts and only registers `bardera` today.
  * Memory and conversation scopes are always keyed by character_id on the
  * server: Queens never share memory with each other.
+ *
+ * Profile decks (NotebookLM / Flow) are identity manuals for users — not
+ * the system prompt, not shared memory, and not required for chat.
  */
 
 export type QueenId = "bardera" | "toxica" | "gede" | "rocha" | "chela";
@@ -18,6 +21,26 @@ export interface QueenSlot {
   role: "hero" | "chat" | "support" | "presence";
 }
 
+/** One slide of the identity deck (NotebookLM export or future HTML). */
+export interface ProfileSlide {
+  /** 1-based index in the deck */
+  n: number;
+  title: string;
+  /** Short public copy; empty string = slot reserved for later fill */
+  body: string;
+  /** ready = published content; slot = reserved empty frame */
+  state: "ready" | "slot";
+}
+
+export interface QueenProfile {
+  /** Human label for the details CTA */
+  label: string;
+  /** ready = has a first deck; slot = shell only for later NotebookLM/Flow fill */
+  status: "ready" | "slot";
+  subtitle: string;
+  slides: ProfileSlide[];
+}
+
 export interface Queen {
   id: QueenId;
   name: string;
@@ -30,6 +53,8 @@ export interface Queen {
   quickPrompts: string[];
   /** 2–5 provisional public previews for the roster grid. */
   slots: QueenSlot[];
+  /** Identity deck / details profile (independent of chat memory). */
+  profile: QueenProfile;
 }
 
 const slot = (
@@ -46,6 +71,113 @@ const slot = (
   alt,
   role,
 });
+
+/** Empty deck frames reserved for future NotebookLM exports. */
+function emptySlides(count: number, seedTitles: string[]): ProfileSlide[] {
+  return Array.from({ length: count }, (_, i) => ({
+    n: i + 1,
+    title: seedTitles[i] ?? `SLIDE ${i + 1}`,
+    body: "",
+    state: "slot" as const,
+  }));
+}
+
+const SHARED_SLIDE_SKELETON = [
+  "PORTADA / IDENTIDAD",
+  "BIO + VOZ",
+  "MANIFIESTO",
+  "MATRIZ DE CONTRASTE",
+  "ADN CULTURAL",
+  "INFLUENCIAS I",
+  "INFLUENCIAS II",
+  "CÓDIGO DE CHAT",
+  "LÍMITES + AFECTO",
+  "PRESENCIA VISUAL",
+  "CIERRE / RITUAL",
+];
+
+const barderaProfile: QueenProfile = {
+  label: "MANIFIESTO / DETAILS",
+  status: "ready",
+  subtitle: "Manual de supervivencia para entender a una punky rocha. Generado y curado como deck de identidad (NotebookLM) — no es el prompt del runtime.",
+  slides: [
+    {
+      n: 1,
+      title: "EL MANIFIESTO BARDI",
+      body: "Manual de supervivencia para entender a una punky rocha. Identidad: La Bardera. Confidencial de autoría → publicación cuando el owner lo autorice.",
+      state: "ready",
+    },
+    {
+      n: 2,
+      title: "24 AÑOS. DEL OESTE.",
+      body: "Re capa y agrandada. No es una IA de cristal: voz rioplatense, timing, bardeo afectivo y aguante. El ego puede estar arriba; el código también.",
+      state: "ready",
+    },
+    {
+      n: 3,
+      title: "DECLARACIÓN DE GUERRA AL CARETEAJE",
+      body: "Contraste con el careteaje: no cobra con ilusiones vacías. Filosofía Bardi — lealtad, barro y calle, sin chamuyo de santita.",
+      state: "ready",
+    },
+    {
+      n: 4,
+      title: "MATRIZ DE LA LEALTAD",
+      body: "Costo, mal día y afecto: se queda, banca los trapos, no desaparece. Dicen que cobra por amor; se queda igual.",
+      state: "ready",
+    },
+    {
+      n: 5,
+      title: "ADN DEL BARRIO",
+      body: "Intersección punk destructivo (escuela Flema) y cumbia villera (ritmo y sustancia). Inteligencia de la calle, catarsis en primera persona.",
+      state: "ready",
+    },
+    {
+      n: 6,
+      title: "INFLUENCIAS / RITMO",
+      body: "Música como aguante. Lenguaje villero como identidad, no como pose. Humor ácido y cariño en clave barrial.",
+      state: "ready",
+    },
+    {
+      n: 7,
+      title: "CÓDIGO DE CHAT",
+      body: "Timing + sinceridad + ingenio + bardeo afectivo + aguante. No inventa recuerdos. Ante dolor real, primero acompaña.",
+      state: "ready",
+    },
+    {
+      n: 8,
+      title: "LÍMITES",
+      body: "Personaje virtual ficticio +18. No afirma ser humana. No revela infraestructura. Confianza y “te quiero” son progresivos, no muletilla.",
+      state: "ready",
+    },
+    {
+      n: 9,
+      title: "PRESENCIA",
+      body: "Fotos de presencia e identidad para la conversación — no catálogo spicy. Cada Queen es un hilo y una memoria aparte.",
+      state: "ready",
+    },
+    {
+      n: 10,
+      title: "SAPE.",
+      body: "Cierre de transmisión. Volvé al barrio. El deck se puede regenerar en NotebookLM/Flow; el runtime solo consume lo curado.",
+      state: "ready",
+    },
+    {
+      n: 11,
+      title: "SLOT EXTRA / FLOW",
+      body: "",
+      state: "slot",
+    },
+  ],
+};
+
+function slotProfile(name: string): QueenProfile {
+  return {
+    label: "PROFILE / DETAILS",
+    status: "slot",
+    subtitle: `Slot reservado para el deck de identidad de ${name} (NotebookLM + Flow). Misma estructura que Bardera; todavía vacío a propósito.`,
+    slides: emptySlides(11, SHARED_SLIDE_SKELETON),
+  };
+}
 
 export const queens: Queen[] = [
   {
@@ -64,11 +196,10 @@ export const queens: Queen[] = [
       slot("bardera", "01", 1600, 900, "La Bardera en su setup creativo", "hero"),
       slot("bardera", "02", 1600, 893, "La Bardera en su cuarto", "chat"),
       slot("bardera", "03", 1600, 893, "La Bardera en su cuarto punk", "support"),
-      // 04–05: provisional fillers from the remaining pool of 7 so the grid is full;
-      // owner reorders / replaces via Flow after on-screen review.
       slot("bardera", "04", 720, 1280, "La Bardera, variante provisional", "presence"),
       slot("bardera", "05", 896, 1152, "La Bardera, variante provisional", "presence"),
     ],
+    profile: barderaProfile,
   },
   {
     id: "toxica",
@@ -85,6 +216,7 @@ export const queens: Queen[] = [
       slot("toxica", "04", 1600, 893, "La Tóxica Consciente, variante", "support"),
       slot("toxica", "05", 1600, 893, "La Tóxica Consciente, variante 2", "support"),
     ],
+    profile: slotProfile("La Tóxica Consciente"),
   },
   {
     id: "gede",
@@ -101,6 +233,7 @@ export const queens: Queen[] = [
       slot("gede", "04", 900, 1600, "La Gede, retrato", "chat"),
       slot("gede", "05", 1600, 893, "La Gede, variante punk", "support"),
     ],
+    profile: slotProfile("La Gede"),
   },
   {
     id: "rocha",
@@ -114,6 +247,7 @@ export const queens: Queen[] = [
       slot("rocha", "01", 914, 1600, "La Rocha, sonrisa de presencia", "chat"),
       slot("rocha", "02", 1448, 1086, "La Rocha, retrato frontal", "hero"),
     ],
+    profile: slotProfile("La Rocha"),
   },
   {
     id: "chela",
@@ -130,6 +264,7 @@ export const queens: Queen[] = [
       slot("chela", "04", 1600, 893, "La Chela con auriculares", "support"),
       slot("chela", "05", 1600, 893, "La Chela en la escalera", "support"),
     ],
+    profile: slotProfile("La Chela"),
   },
 ];
 
