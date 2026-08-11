@@ -24,7 +24,7 @@ Rutas bajo `apps/web/public/queens/<id>/0N.jpg`. Hashes exactos en `config/publi
 
 | Queen | Slots | Runtime chat | Notas |
 |---|---|---|---|
-| `bardera` | 3 | **live** | setup + 2 cuarto; pool sin más tomas no-spicy |
+| `bardera` | 5 | **live** | 01–03 presencia/chat preferidas; 04–05 relleno provisional del pool de 7 (reordenar/reemplazar con Flow) |
 | `toxica` | 5 | curación | presencia en cuarto |
 | `gede` | 5 | curación | cuarto + retrato vertical |
 | `rocha` | 2 | curación | pool chico; faltan 2–3 tomas |

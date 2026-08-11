@@ -64,6 +64,10 @@ export const queens: Queen[] = [
       slot("bardera", "01", 1600, 900, "La Bardera en su setup creativo", "hero"),
       slot("bardera", "02", 1600, 893, "La Bardera en su cuarto", "chat"),
       slot("bardera", "03", 1600, 893, "La Bardera en su cuarto punk", "support"),
+      // 04–05: provisional fillers from the remaining pool of 7 so the grid is full;
+      // owner reorders / replaces via Flow after on-screen review.
+      slot("bardera", "04", 720, 1280, "La Bardera, variante provisional", "presence"),
+      slot("bardera", "05", 896, 1152, "La Bardera, variante provisional", "presence"),
     ],
   },
   {

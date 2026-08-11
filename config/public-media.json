@@ -25,6 +25,18 @@
       "premium": false
     },
     {
+      "path": "queens/bardera/04.jpg",
+      "sha256": "de55ae73535b77569908de9704ae26be456ed0d933b64f917abeee8957ed28d2",
+      "classification": "preview",
+      "premium": false
+    },
+    {
+      "path": "queens/bardera/05.jpg",
+      "sha256": "131ed87d5ca8b457867aa508aa5e8bb32904bff4713436d46f8cf4aeadb8126b",
+      "classification": "preview",
+      "premium": false
+    },
+    {
       "path": "queens/chela/01.jpg",
       "sha256": "91c83f14c4225b815175699e8d81425638ef6d7db9500ea6b6e102bf00413b8f",
       "classification": "preview",
