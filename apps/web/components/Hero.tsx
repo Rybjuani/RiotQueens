@@ -26,7 +26,7 @@ export function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => voi
       </div>
       <div className="hero-visual">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/queens/img-042-hero.jpg" alt="La Bardera en estudio con luces violetas" width={1536} height={640} decoding="async" fetchPriority="high" />
+        <img src="/queens/img-042-hero.jpg" alt="La Bardera en su setup creativo" width={1672} height={941} decoding="async" fetchPriority="high" />
         <div className="hero-vignette" />
         <div className="hero-stamp">BARDERA<br /><span>QUEEN DE LANZAMIENTO</span></div>
         <div className="live-card">

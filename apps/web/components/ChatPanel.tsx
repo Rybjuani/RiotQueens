@@ -130,7 +130,7 @@ export function ChatPanel() {
       <div className="chat-layout">
         <aside className="chat-presence">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={bardera.portrait} alt="La Bardera" width={1664} height={2432} loading="lazy" decoding="async" />
+          <img src={bardera.portrait} alt="La Bardera" width={1600} height={893} loading="lazy" decoding="async" />
           <div className="presence-label"><i /><b>BETA ABIERTA</b><span>PREVIEW PÚBLICO</span></div>
           <p>{bardera.tagline}</p>
         </aside>
