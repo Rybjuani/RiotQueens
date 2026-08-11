@@ -12,7 +12,7 @@ export function Experience({ onStart }: { onStart: () => void }) {
       <div className="experience-grid">
         <article className="experience-photo">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/queens/img-065-reference.jpg" alt="La Bardera en su cuarto, presencia de chat" width={1600} height={893} loading="lazy" decoding="async" />
+          <img src="/queens/bardera/02.jpg" alt="La Bardera en su cuarto, presencia de chat" width={1600} height={893} loading="lazy" decoding="async" />
           <div><b>IDENTIDAD</b><span>Una presencia reconocible, no un catálogo infinito.</span></div>
         </article>
         <div className="experience-stack">
@@ -31,7 +31,7 @@ export function Experience({ onStart }: { onStart: () => void }) {
           <button className="button-primary" onClick={onStart}>HABLÁ CON LA BARDERA →</button>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/queens/img-074-support.jpg" alt="La Bardera en su cuarto punk" width={1600} height={893} loading="lazy" decoding="async" />
+        <img src="/queens/bardera/03.jpg" alt="La Bardera en su cuarto punk" width={1600} height={893} loading="lazy" decoding="async" />
       </div>
     </section>
   );

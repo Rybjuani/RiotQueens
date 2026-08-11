@@ -7,6 +7,7 @@ import { Experience } from "@/components/Experience";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { Navbar } from "@/components/Navbar";
+import { QueenRoster } from "@/components/QueenRoster";
 import { TierGrid } from "@/components/TierGrid";
 
 type ModalKind = "how" | "locked" | null;
@@ -66,6 +67,7 @@ export default function Home() {
           <div>✦ TE BARDEA ✦ TE QUIERE ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦ COMPLEJIDAD ESCONDIDA ✦</div>
         </div>
         <Experience onStart={startChat} />
+        <QueenRoster onStartBardera={startChat} onLocked={() => setModal("locked")} />
         <TierGrid onStart={startChat} onLocked={() => setModal("locked")} />
         {chatOpen && <ChatPanel />}
         <section className="final-cta" id="join">
