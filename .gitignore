@@ -26,9 +26,7 @@ derived/
 *.jpeg
 *.webp
 !apps/web/public/brand/riotqueens-logo.jpeg
-!apps/web/public/queens/img-042-hero.jpg
-!apps/web/public/queens/img-065-reference.jpg
-!apps/web/public/queens/img-074-support.jpg
+!apps/web/public/queens/**/*.jpg
 !.github/
 
 # Private visual library and local working dumps; keep outside this public repo.
