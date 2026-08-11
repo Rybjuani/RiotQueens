@@ -1,6 +1,6 @@
 # Despliegue inicial
 
-**Última verificación:** 2026-08-09
+**Última verificación:** 2026-08-11
 
 ## Estado verificado
 
@@ -8,13 +8,16 @@
 - acceso administrativo por clave pública con usuario `ubuntu`;
 - login SSH por contraseña y login de root deshabilitados;
 - UFW activo: entrada denegada por defecto y solo `22/tcp`, `80/tcp`, `443/tcp` y `443/udp` permitidos;
-- Docker `29.1.3` y Compose `2.40.3` activos;
-- `docker compose config` y los builds de `api` y `web` completados en el VPS;
-- release `570ed7e` activa desde `/opt/riotqueens/releases/570ed7e`;
-- `api` y `web` saludables; Caddy publica HTTP en `148.113.167.121`;
+- Docker y Compose activos;
+- release `c782b7b` activa desde `/opt/riotqueens/releases/c782b7b`;
+- `api` y `web` healthy; Caddy publica HTTP en `148.113.167.121`;
+- runtime compartido en `/opt/riotqueens/shared/runtime.env` (modo `0600`) migrado al prefijo `RIOTQUEENS_*`;
 - smoke tests externos superados para `/`, `/legal`, `/privacy`, `/api/health`, `/api/v1/runtime/status` y `/api/v1/chat`;
-- el logo entregado por HTTP conserva el SHA-256 oficial;
-- `/.env` y `/.ssh/authorized_keys` responden `404` y no se detectaron errores recientes en los logs;
+- `/v1/chat` devuelve solo `response.content` y `Cache-Control: no-store`;
+- Queens no registradas responden `404 queen_not_found`;
+- endpoints WIP retirados (`/v1/onboarding/profile`, `/v1/characters`, `/v1/media/mock`) responden `404`;
+- el logo entregado por HTTP conserva el SHA-256 oficial `e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1`;
+- `/.env` y `/.ssh/authorized_keys` responden `404`;
 - no hay registro `A`/`AAAA` resolviendo para `riotqueens.ai` ni `www.riotqueens.ai`;
 - HTTPS queda pendiente hasta que el dominio resuelva al VPS.
 
@@ -24,7 +27,7 @@
 - la configuración runtime vive fuera de la release, en `/opt/riotqueens/shared/runtime.env`, con modo `0600`;
 - Caddy es el único proceso publicado;
 - `/api/*` se reescribe hacia FastAPI y las demás rutas hacia Next.js;
-- el primer corte usa el proveedor `mock` y estado conversacional en proceso;
+- el corte actual usa el proveedor `mock` y estado conversacional en proceso;
 - no se sirven `/home`, `.git`, `.env`, masters ni biblioteca privada.
 
 ## Activación controlada
