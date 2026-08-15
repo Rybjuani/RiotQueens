@@ -21,6 +21,7 @@ Esto no autoriza a agregar GPU, Ollama o almacenamiento persistente al producto 
 | OpenRouter/Llama | baseline de conversación Bardera | FAIL: 12 turnos, 4 hard-fails | recalibrar prompt/modelo o reemplazar |
 | Hugging Face Router | fallback compatible | INFRA/PERSONALIDAD: HTTP 200 inicial, 5 hard-fails y HTTP 402 en T10 | resolver cuota/pago y repetir batería |
 | Google AI Studio | laboratorio multimodal / comparación | INFRA: 5 turnos sin hard-fail, timeout en T6 | resolver latencia y repetir batería |
+| Google AI Studio + Gemma | benchmark alternativo de personalidad | FAIL/INFRA: 10 turnos, 4 hard-fails, HTTP 429 y `<thought>` visible | limitar pensamiento, resolver cuota y repetir |
 | Gemma vía Ollama | laboratorio local de bajo volumen | PROPUESTA | reproducibilidad, VRAM/latencia y benchmark |
 
 La matriz no decide un ganador por reputación. `PASS` requiere el benchmark de la Queen, revisión de salidas, límites de seguridad intactos y registro reproducible. Un modelo puede pasar Bardera y fallar otra Queen.
