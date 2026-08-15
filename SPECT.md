@@ -269,7 +269,10 @@ Para el análisis de transferencias desde Argentina, Canadá —respecto de su s
 - los endpoints WIP sin consumidor para onboarding, personajes configurables y media mock no forman parte de la API pública;
 - PostgreSQL y Redis son objetivos, pero no se ejecutan hasta que adaptadores reales los consuman;
 - Caddy publica web y API bajo un solo origen y enruta `/api/*` hacia FastAPI;
-- no hay autenticación real ni clickwrap versionado implementado;
+- C3 implementa la frontera de autenticación: Auth0 es IAM externo y el actor
+  se resuelve a un UUID RiotQueens propio antes del dominio; la activación real
+  requiere tenant CA non-production, Custom API, migración PostgreSQL y vars
+  locales. Clickwrap versionado todavía no está implementado;
 - conversación y memoria se pierden al reiniciar el proceso;
 - no hay todavía storage privado, entitlements, créditos ni pagos implementados;
 - el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
@@ -384,7 +387,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 
 ### Pendiente
 
-- definir el mecanismo de auth y resolver persistencia durable;
+- crear/configurar el tenant Auth0 CA non-production, Custom API y ejecutar la
+  migración de identidad antes de activar el runtime protegido;
 - aprobar jurisdicciones, textos legales versionados, hashes y retención antes de implementar el clickwrap de acceso;
 - definir storage/CDN y autorización de media;
 - cerrar pricing, límites, beneficios por tier y economía de créditos;

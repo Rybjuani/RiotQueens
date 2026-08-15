@@ -53,6 +53,10 @@ export default function Home() {
   const [modal, setModal] = useState<ModalKind>(null);
 
   const startChat = () => {
+    if (process.env.NEXT_PUBLIC_AUTH_ENABLED === "true") {
+      window.location.assign("/api/auth/login?returnTo=/#chat");
+      return;
+    }
     setModal(null);
     setChatOpen(true);
     window.setTimeout(() => document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }), 60);

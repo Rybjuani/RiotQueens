@@ -1,18 +1,13 @@
 /**
- * Per-browser-session prototype scope identifiers.
+ * Per-browser-session conversation handle.
  *
- * Generates separate random user and conversation ids once per browser
- * tab session and persists them in `sessionStorage`, so a page refresh
- * keeps the same prototype scope but a new tab gets a fresh one. The
- * user id is NOT authentication and neither id is durable identity.
+ * Generates one opaque conversation handle per browser tab session. A page
+ * refresh keeps it; the authenticated backend derives the actor identity.
  *
- * Per Issue #3 #8: "per-browser-session conversation identifier ...
- * refresh can reasonably keep the same session ... do not claim this
- * is persistent memory ... no database required."
+ * It is a resource identifier only, never an actor identity.
  */
 
 const CONVERSATION_STORAGE_KEY = "rq.conversation_id";
-const USER_STORAGE_KEY = "rq.prototype_user_id";
 const LEGACY_CONVERSATION_STORAGE_KEY = "cs.conversation_id";
 const CLIENT_SCOPE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -45,7 +40,7 @@ function generateId(): string {
 function getSessionId(
   storageKey: string,
   ssrPlaceholder: string,
-  memoryKey: "conversation" | "user",
+  memoryKey: "conversation",
   legacyStorageKey?: string,
 ): string {
   if (typeof window === "undefined") {
@@ -77,12 +72,11 @@ function getSessionId(
   }
 }
 
-const inMemoryIds: { conversation: string | null; user: string | null } = {
+const inMemoryIds: { conversation: string | null } = {
   conversation: null,
-  user: null,
 };
 
-function getInMemoryId(key: "conversation" | "user"): string {
+function getInMemoryId(key: "conversation"): string {
   const existing = inMemoryIds[key];
   if (existing) return existing;
   const generated = generateId();
@@ -98,12 +92,4 @@ export function getConversationId(): string {
     "conversation",
     LEGACY_CONVERSATION_STORAGE_KEY,
   );
-}
-
-/**
- * Random prototype scope for this browser tab session.
- * This value is caller-controlled and MUST NOT be treated as authentication.
- */
-export function getPrototypeUserId(): string {
-  return getSessionId(USER_STORAGE_KEY, "ssr-prototype-user", "user");
 }

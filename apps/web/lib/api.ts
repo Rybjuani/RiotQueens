@@ -10,7 +10,7 @@
  * the canonical Queen personality.
  */
 
-import { getConversationId, getPrototypeUserId } from "@/lib/session";
+import { getConversationId } from "@/lib/session";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -25,6 +25,13 @@ export interface ChatResponse {
   };
 }
 
+async function authenticatedHeaders(): Promise<HeadersInit> {
+  const tokenResponse = await fetch("/api/access-token", { cache: "no-store" });
+  if (!tokenResponse.ok) throw new Error("Authentication required");
+  const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
+  return { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
+}
+
 /**
  * Send a single chat message to the canonical Queen.
  * The backend keeps conversation state server-side; the frontend sends
@@ -36,10 +43,9 @@ export async function sendChat(
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_URL}/v1/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authenticatedHeaders(),
     body: JSON.stringify({
       message,
-      user_id: getPrototypeUserId(),
       character_id: opts?.character_id ?? "bardera",
       conversation_id: getConversationId(),
     }),
@@ -72,9 +78,8 @@ export async function clearConversation(
     `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}`,
     {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({
-        user_id: getPrototypeUserId(),
         character_id: opts?.character_id ?? "bardera",
       }),
       signal: opts?.signal,
@@ -113,10 +118,9 @@ export async function getConversation(
 ): Promise<ConversationSummary> {
   const res = await fetch(
     `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?${new URLSearchParams({
-      user_id: getPrototypeUserId(),
       character_id: opts?.character_id ?? "bardera",
     }).toString()}`,
-    { signal: opts?.signal, cache: "no-store" },
+    { signal: opts?.signal, cache: "no-store", headers: await authenticatedHeaders() },
   );
   if (!res.ok) {
     throw new Error(`Get conversation API error: ${res.status} ${res.statusText}`);

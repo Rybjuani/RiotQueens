@@ -108,7 +108,9 @@ class ChatRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    user_id: ScopeIdentifier
+    # Deprecated compatibility field. It is ignored whenever authentication is
+    # enabled; the server derives the actor from the verified token.
+    user_id: ScopeIdentifier | None = None
     character_id: QueenIdentifier
     conversation_id: ScopeIdentifier
     message: str = Field(min_length=1, max_length=4_000)
@@ -167,7 +169,7 @@ class ConversationSummary(BaseModel):
 class ConversationScopeRequest(BaseModel):
     """Explicit scope body for conversation and memory deletion."""
 
-    user_id: ScopeIdentifier
+    user_id: ScopeIdentifier | None = None
     character_id: QueenIdentifier
 
 
@@ -185,7 +187,7 @@ class MemoryCreateRequest(BaseModel):
     memory section.
     """
 
-    user_id: ScopeIdentifier
+    user_id: ScopeIdentifier | None = None
     character_id: QueenIdentifier
     content: str = Field(min_length=1, max_length=500)
 

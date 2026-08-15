@@ -1,13 +1,15 @@
 import os
+from contextlib import asynccontextmanager
 from datetime import UTC
 from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from .domain.authorization import Principal
 from .domain.context import assemble_request_messages, build_model_request
 from .domain.contracts import (
     ChatAssistantResponse,
@@ -29,6 +31,11 @@ from .domain.conversations import (
     ConversationScopeKey,
     InProcessConversationStore,
 )
+from .domain.identity import (
+    PostgresIdentityRepository,
+    auth_is_required,
+    require_principal,
+)
 from .domain.memories import (
     InProcessMemoryStore,
     MemoryScopeKey,
@@ -47,7 +54,28 @@ from .domain.providers.errors import (
 from .domain.queens import is_registered_queen
 from .domain.router import build_router, runtime_status
 
-app = FastAPI(title="RiotQueens API", version="0.4.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Connect the durable identity map only for the protected runtime."""
+
+    if auth_is_required():
+        database_url = os.environ.get("DATABASE_URL")
+        if database_url:
+            import asyncpg
+
+            # SQLAlchemy-style URLs are accepted in the shared env contract.
+            dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+            pool = await asyncpg.create_pool(dsn)
+            app.state.identity_pool = pool
+            app.state.identity_repository = PostgresIdentityRepository(pool)
+    yield
+    pool = getattr(app.state, "identity_pool", None)
+    if pool is not None:
+        await pool.close()
+
+
+app = FastAPI(title="RiotQueens API", version="0.4.0", lifespan=lifespan)
 
 
 class NoStoreV1Middleware:
@@ -124,6 +152,18 @@ def _require_registered_queen(character_id: str) -> None:
         )
 
 
+def _actor_user_id(principal: Principal | None, browser_user_id: str | None) -> str:
+    """Return a token-derived actor identity; legacy test mode is explicit."""
+
+    if auth_is_required():
+        if principal is None:  # Defensive: dependency must already have failed closed.
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        return principal.user_id
+    if browser_user_id is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return browser_user_id
+
+
 _PROVIDER_HTTP_STATUS: dict[type[ProviderError], int] = {
     ProviderTimeoutError: 504,
     ProviderInvalidResponseError: 502,
@@ -183,7 +223,10 @@ async def get_runtime_status() -> dict[str, object]:
 
 
 @app.post("/v1/chat", response_model=ChatResponse)
-async def chat(payload: ChatRequest) -> ChatResponse:
+async def chat(
+    payload: ChatRequest,
+    principal: Annotated[Principal | None, Depends(require_principal)],
+) -> ChatResponse:
     """Send a single chat message and rebuild canonical server context.
 
     The frontend sends ONLY the current user message plus the scope
@@ -221,8 +264,9 @@ async def chat(payload: ChatRequest) -> ChatResponse:
     """
     _require_registered_queen(payload.character_id)
 
+    user_id = _actor_user_id(principal, payload.user_id)
     conversation_scope = ConversationScopeKey(
-        user_id=payload.user_id,
+        user_id=user_id,
         character_id=payload.character_id,
         conversation_id=payload.conversation_id,
     )
@@ -242,7 +286,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             #    provider-independent internal request.
             messages = await assemble_request_messages(
                 character_id=payload.character_id,
-                user_id=payload.user_id,
+                user_id=user_id,
                 conversation_id=payload.conversation_id,
                 current_message=payload.message,
                 route=Route.FAST_CHAT,
@@ -253,7 +297,7 @@ async def chat(payload: ChatRequest) -> ChatResponse:
             request = build_model_request(
                 route=Route.FAST_CHAT,
                 character_id=payload.character_id,
-                user_id=payload.user_id,
+                user_id=user_id,
                 conversation_id=payload.conversation_id,
                 messages=messages,
             )
@@ -294,8 +338,9 @@ async def chat(payload: ChatRequest) -> ChatResponse:
 )
 async def get_conversation(
     conversation_id: ScopeIdentifier,
-    user_id: Annotated[ScopeIdentifier, Query()],
     character_id: Annotated[QueenIdentifier, Query()],
+    user_id: Annotated[ScopeIdentifier | None, Query()] = None,
+    principal: Annotated[Principal | None, Depends(require_principal)] = None,
 ) -> ConversationSummary:
     """Return the stored messages for one conversation scope.
 
@@ -310,8 +355,9 @@ async def get_conversation(
     """
     _require_registered_queen(character_id)
 
+    actor_user_id = _actor_user_id(principal, user_id)
     scope = ConversationScopeKey(
-        user_id=user_id,
+        user_id=actor_user_id,
         character_id=character_id,
         conversation_id=conversation_id,
     )
@@ -324,7 +370,7 @@ async def get_conversation(
 
         now = datetime.now(UTC)
         return ConversationSummary(
-            user_id=user_id,
+            user_id=actor_user_id,
             character_id=character_id,
             conversation_id=conversation_id,
             messages=[],
@@ -353,6 +399,7 @@ async def get_conversation(
 async def delete_conversation(
     conversation_id: ScopeIdentifier,
     payload: ConversationScopeRequest,
+    principal: Annotated[Principal | None, Depends(require_principal)],
 ) -> ConversationDeleteResponse:
     """Clear the in-process conversation state for one scope.
 
@@ -367,7 +414,7 @@ async def delete_conversation(
     _require_registered_queen(payload.character_id)
 
     scope = ConversationScopeKey(
-        user_id=payload.user_id,
+        user_id=_actor_user_id(principal, payload.user_id),
         character_id=payload.character_id,
         conversation_id=conversation_id,
     )
@@ -382,8 +429,9 @@ async def delete_conversation(
 
 @app.get("/v1/memories", response_model=MemoryListResponse)
 async def list_memories(
-    user_id: Annotated[ScopeIdentifier, Query()],
     character_id: Annotated[QueenIdentifier, Query()],
+    user_id: Annotated[ScopeIdentifier | None, Query()] = None,
+    principal: Annotated[Principal | None, Depends(require_principal)] = None,
 ) -> MemoryListResponse:
     """List the explicit user-fact memories for one scope.
 
@@ -396,7 +444,8 @@ async def list_memories(
     """
     _require_registered_queen(character_id)
 
-    scope = MemoryScopeKey(user_id=user_id, character_id=character_id)
+    actor_user_id = _actor_user_id(principal, user_id)
+    scope = MemoryScopeKey(user_id=actor_user_id, character_id=character_id)
     records = await memory_store.list_memories(scope)
     return MemoryListResponse(
         memories=[
@@ -418,7 +467,10 @@ async def list_memories(
 
 
 @app.post("/v1/memories", response_model=MemoryRecordView, status_code=201)
-async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
+async def create_memory(
+    payload: MemoryCreateRequest,
+    principal: Annotated[Principal | None, Depends(require_principal)],
+) -> MemoryRecordView:
     """Add an explicit user-fact memory.
 
     The client supplies only `content` (1-500 chars) and the scope
@@ -434,7 +486,10 @@ async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
     """
     _require_registered_queen(payload.character_id)
 
-    scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
+    scope = MemoryScopeKey(
+        user_id=_actor_user_id(principal, payload.user_id),
+        character_id=payload.character_id,
+    )
     record = await memory_store.add_memory(scope, payload.content)
     return MemoryRecordView(
         id=record.id,
@@ -453,6 +508,7 @@ async def create_memory(payload: MemoryCreateRequest) -> MemoryRecordView:
 async def delete_memory(
     memory_id: ScopeIdentifier,
     payload: ConversationScopeRequest,
+    principal: Annotated[Principal | None, Depends(require_principal)],
 ) -> MemoryDeleteResponse:
     """Delete a single explicit user-fact memory by id within a scope.
 
@@ -465,7 +521,10 @@ async def delete_memory(
     """
     _require_registered_queen(payload.character_id)
 
-    scope = MemoryScopeKey(user_id=payload.user_id, character_id=payload.character_id)
+    scope = MemoryScopeKey(
+        user_id=_actor_user_id(principal, payload.user_id),
+        character_id=payload.character_id,
+    )
     deleted = await memory_store.delete_memory(scope, memory_id)
     if not deleted:
         # Clean 404 for unknown id within scope. We do NOT leak whether

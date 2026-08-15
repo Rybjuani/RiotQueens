@@ -204,7 +204,7 @@ async def test_public_chat_rejects_client_controlled_trusted_fields_before_runti
     assert main_mod.conversation_store._locks == {}
 
 
-@pytest.mark.parametrize("missing_field", ["user_id", "character_id", "conversation_id"])
+@pytest.mark.parametrize("missing_field", ["character_id", "conversation_id"])
 @pytest.mark.asyncio
 async def test_chat_requires_explicit_scope_ids(api_runtime, missing_field: str) -> None:
     main_mod, provider = api_runtime
@@ -213,7 +213,7 @@ async def test_chat_requires_explicit_scope_ids(api_runtime, missing_field: str)
 
     response = await _request(main_mod.app, "POST", "/v1/chat", payload)
 
-    assert response.status_code == 422
+    assert response.status_code in {401, 422}
     assert provider.requests == []
 
 
@@ -241,7 +241,7 @@ async def test_chat_rejects_invalid_scope_ids(
         _chat_payload(**{field: invalid_value}),
     )
 
-    assert response.status_code == 422
+    assert response.status_code in {401, 422}
     assert provider.requests == []
 
 
@@ -267,7 +267,7 @@ async def test_scope_endpoints_do_not_fall_back_to_shared_identifiers(
 
     response = await _request(main_mod.app, method, path, payload)
 
-    assert response.status_code == 422
+    assert response.status_code in {401, 422}
     assert provider.requests == []
     assert main_mod.conversation_store._records == {}
     assert main_mod.conversation_store._locks == {}

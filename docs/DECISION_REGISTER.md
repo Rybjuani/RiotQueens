@@ -300,13 +300,14 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 - Activar R2 con bucket público deliberado y bucket privado.
 - Definir backup externo, restauración y procedimiento de respuesta a abuso.
 
-#### Due diligence Auth0 — hechos verificados, sin adopción
+#### Auth0 — decisión de desarrollo no productivo y gate de producción
 
 - Auth0 ofrece Public Cloud en Canadá; al crear un tenant se selecciona la localidad `CA`, que forma parte del dominio y controla la región donde se alojan los datos. La subregión concreta no se elige manualmente ([Create Tenants](https://auth0.com/docs/get-started/auth0-overview/create-tenants); [Support](https://support.auth0.com/center/s/article/Tenant-Creation-in-a-Specific-Sub-region)).
 - Auth0 documenta que los datos de usuario viven en el perfil y que metadata no es un almacén seguro para información sensible; sólo debe contener lo necesario para IAM ([Data Processing](https://auth0.com/docs/secure/data-privacy-and-compliance/data-processing)). Esto es compatible con conservar `riotqueens_user_id`, clickwrap, conversaciones, memoria, tiers, entitlements, media y datos sensibles en el plano propio, y mapear en PostgreSQL sólo el `subject` externo reemplazable.
 - En el flujo documentado de Teams, crear un tenant implica aceptar los Free Trial terms del Master Subscription Agreement; la documentación revisada no permite afirmar con certeza el acto contractual exacto para la primera creación de cuenta/tenant fuera de ese flujo ([Tenant Management](https://auth0.com/docs/get-started/auth0-teams/tenant-management)).
 - La documentación revisada no aporta autorización contractual específica para una plataforma `+18`, ni prueba que perfiles, logs, backups, soporte y todos los subprocesadores de un tenant `CA` permanezcan exclusivamente en Canadá. No inferir aprobación por ausencia de una prohibición visible.
-- Antes de adoptar Auth0, obtener respuesta escrita de Auth0 sobre compatibilidad `+18`, DPA aplicable, lista/versionado de subprocesadores, mecanismo para transferencias desde Argentina y alcance geográfico completo del tenant `CA`.
+- El owner autorizó aceptar los términos vigentes necesarios para evaluación e implementación no productiva. C3 conserva Auth0 sólo como IAM: `sub` se vincula transaccionalmente a `users.id` UUID propio mediante `external_identities`; no se usa email, browser ID ni `sub` como PK de dominio. La decisión técnica está en ADR 0008.
+- **Gate de producción pendiente:** respuesta escrita de Auth0 sobre compatibilidad `+18`, DPA aplicable, lista/versionado de subprocesadores, mecanismo para transferencias desde Argentina y alcance geográfico completo del tenant `CA`.
 
 ## 8. Reglas para no perder contexto otra vez
 
