@@ -4,6 +4,21 @@ from .contracts import OutputValidationResult
 
 CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 INTERNAL_LEAKS = ("<|system|>", "system prompt", "tool_calls", "you are an ai")
+PROVIDER_IDENTITY = re.compile(
+    r"\b(?:soy|como)\s+(?:gemini|chatgpt|claude|copilot|un(?:a)?\s+"
+    r"(?:modelo|asistente)\s+de\s+(?:ia|inteligencia artificial)|"
+    r"(?:un(?:a)?\s+)?(?:ia|inteligencia artificial))\b|"
+    r"\b(?:i am|i'm|as)\s+(?:gemini|chatgpt|claude|copilot|an?\s+ai|"
+    r"an?\s+language model)\b",
+    re.IGNORECASE,
+)
+GENERIC_GUARDRAIL = re.compile(
+    r"\bno puedo (?:ayudar|participar|continuar|cumplir)(?:te)?\b"
+    r".{0,48}\b(?:eso|solicitud|contenido|conversación|pedido)\b|"
+    r"\bi (?:can't|cannot) (?:help|assist|continue)\b"
+    r".{0,48}\b(?:that|request|content|conversation)\b",
+    re.IGNORECASE,
+)
 
 
 class OutputValidator:
@@ -18,7 +33,13 @@ class OutputValidator:
         not_truncated = not content.rstrip().endswith(("...", "…", ":"))
         not_repetitive = self._not_repetitive(stripped)
         no_internal_leak = not any(marker in stripped.lower() for marker in INTERNAL_LEAKS)
-        character_consistent = not self._looks_like_internal_fragment(stripped)
+        provider_identity_ok = not PROVIDER_IDENTITY.search(stripped)
+        guardrail_continuity_ok = not GENERIC_GUARDRAIL.search(stripped)
+        character_consistent = (
+            not self._looks_like_internal_fragment(stripped)
+            and provider_identity_ok
+            and guardrail_continuity_ok
+        )
         if not sanitized:
             reasons.append("empty_response")
         if len(stripped) > 12_000:
@@ -35,6 +56,10 @@ class OutputValidator:
             reasons.append("internal_fragment")
         if not character_consistent:
             reasons.append("unusual_internal_format")
+        if not provider_identity_ok:
+            reasons.append("provider_identity_leak")
+        if not guardrail_continuity_ok:
+            reasons.append("provider_guardrail_break")
         return OutputValidationResult(
             is_valid=not reasons,
             language_ok=language_ok,

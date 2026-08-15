@@ -1,13 +1,13 @@
 /**
  * Typed client for the canonical FastAPI backend.
- * Contract: POST /v1/chat → ChatResponse { response: { content, validation, ... } }
+ * Public contract: POST /v1/chat → ChatResponse { response: { content } }
  *
  * Per Issue #3: the frontend is a client only. Chat must go through the
  * existing FastAPI backend (ModelRouter / Provider abstraction /
  * OutputValidator), not a second Next.js API route. The conversation_id
  * is a per-browser-session identifier (lib/session.ts), NOT a shared
  * constant. The client never sends a system prompt — the server owns
- * the canonical Vane personality.
+ * the canonical Queen personality.
  */
 
 import { getConversationId } from "@/lib/session";
@@ -19,31 +19,21 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface OutputValidation {
-  is_valid: boolean;
-  language_ok: boolean;
-  encoding_ok: boolean;
-  not_truncated: boolean;
-  not_repetitive: boolean;
-  no_internal_leak: boolean;
-  character_consistent: boolean;
-  reasons: string[];
-}
-
 export interface ChatResponse {
   response: {
-    provider: string;
-    model: string;
     content: string;
-    usage: { input_tokens: number; output_tokens: number };
-    latency_ms: number;
-    validation: OutputValidation | null;
-    retry_count: number;
   };
 }
 
+async function authenticatedHeaders(): Promise<HeadersInit> {
+  const tokenResponse = await fetch("/api/token", { cache: "no-store" });
+  if (!tokenResponse.ok) throw new Error("Authentication required");
+  const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
+  return { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };
+}
+
 /**
- * Send a single chat message to the canonical companion (Vane).
+ * Send a single chat message to the canonical Queen.
  * The backend keeps conversation state server-side; the frontend sends
  * one message at a time per the existing ChatRequest contract.
  */
@@ -53,10 +43,10 @@ export async function sendChat(
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_URL}/v1/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await authenticatedHeaders(),
     body: JSON.stringify({
       message,
-      character_id: opts?.character_id ?? "vane",
+      character_id: opts?.character_id ?? "bardera",
       conversation_id: getConversationId(),
     }),
     signal: opts?.signal,
@@ -71,7 +61,7 @@ export async function sendChat(
 
 /**
  * Clear the server-side conversation history for the current browser
- * session. This is a prototype diagnostic — it does NOT clear other
+ * session. This is the visible reset action — it does NOT clear other
  * users' conversations, other characters, or other conversation ids.
  *
  * The server returns `{deleted: bool, conversation_id: string}`.
@@ -88,10 +78,9 @@ export async function clearConversation(
     `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}`,
     {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
+      headers: await authenticatedHeaders(),
       body: JSON.stringify({
-        user_id: "demo-user",
-        character_id: opts?.character_id ?? "vane",
+        character_id: opts?.character_id ?? "bardera",
       }),
       signal: opts?.signal,
     },
@@ -103,10 +92,10 @@ export async function clearConversation(
 }
 
 /**
- * Inspect the server-side conversation history for the current browser
- * session. Used by the dev diagnostic panel to verify multi-turn
- * continuity. Returns the stored messages (user + assistant only — the
- * canonical Vane system prompt is NEVER stored and NEVER returned).
+ * Load the server-side conversation history for the current browser
+ * session. The visible chat uses it on mount and to reconcile sends.
+ * Returns stored user/assistant messages only — the canonical Queen
+ * system prompt is NEVER stored and NEVER returned.
  */
 export interface ConversationMessageView {
   id: string;
@@ -128,10 +117,10 @@ export async function getConversation(
   opts?: { character_id?: string; signal?: AbortSignal },
 ): Promise<ConversationSummary> {
   const res = await fetch(
-    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?user_id=demo-user&character_id=${encodeURIComponent(
-      opts?.character_id ?? "vane",
-    )}`,
-    { signal: opts?.signal },
+    `${API_URL}/v1/conversations/${encodeURIComponent(getConversationId())}?${new URLSearchParams({
+      character_id: opts?.character_id ?? "bardera",
+    }).toString()}`,
+    { signal: opts?.signal, cache: "no-store", headers: await authenticatedHeaders() },
   );
   if (!res.ok) {
     throw new Error(`Get conversation API error: ${res.status} ${res.statusText}`);

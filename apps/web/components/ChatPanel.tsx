@@ -1,69 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { vane } from "@/lib/companion";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import {
   clearConversation,
   getConversation,
   sendChat,
   type ChatMessage,
   type ConversationSummary,
-  type OutputValidation,
 } from "@/lib/api";
+import { bardera } from "@/lib/queen";
 
-interface Props {
-  answers: Record<string, string>;
-  onEdit: () => void;
-}
+const CHAT_MESSAGE_MAX_LENGTH = 4_000;
 
-interface RuntimeStatus {
-  provider: string;
-  model: string;
-  configured: boolean;
-  mode: string;
-}
-
-export function ChatPanel({ answers, onEdit }: Props) {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: vane.greeting },
-  ]);
+export function ChatPanel() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [hydrating, setHydrating] = useState(true);
+  const [conversationReady, setConversationReady] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [validation, setValidation] = useState<OutputValidation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
-  const [serverTurnCount, setServerTurnCount] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const requestInFlightRef = useRef(false);
 
-  // Fetch runtime/provider status once on mount (safe diagnostics, no secrets).
-  useEffect(() => {
-    const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-    fetch(`${api}/v1/runtime/status`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) setRuntime(d);
-      })
-      .catch(() => {
-        /* diagnostics are best-effort; ignore failures */
-      });
+  const hydrateConversation = useCallback(async (signal?: AbortSignal) => {
+    setHydrating(true);
+    setError(null);
+    try {
+      const summary: ConversationSummary = await getConversation({ character_id: bardera.id, signal });
+      if (signal?.aborted) return;
+      setMessages(summary.messages.map(({ role, content }) => ({ role, content })));
+      setConversationReady(true);
+    } catch {
+      if (!signal?.aborted) {
+        setConversationReady(false);
+        setError("No se pudo recuperar esta sesión. Reintentá antes de seguir.");
+      }
+    } finally {
+      if (!signal?.aborted) setHydrating(false);
+    }
   }, []);
 
-  // Refresh the server-side turn count whenever the local bubble list
-  // changes. This is a small dev diagnostic that surfaces whether the
-  // backend actually persisted the turn (vs. just rendering it locally).
   useEffect(() => {
-    let cancelled = false;
-    getConversation()
-      .then((summary: ConversationSummary) => {
-        if (!cancelled) setServerTurnCount(summary.messages.length);
-      })
-      .catch(() => {
-        /* best-effort diagnostic */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [messages]);
+    const controller = new AbortController();
+    void hydrateConversation(controller.signal);
+    return () => controller.abort();
+  }, [hydrateConversation]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -71,178 +53,110 @@ export function ChatPanel({ answers, onEdit }: Props) {
 
   const send = async (text?: string) => {
     const content = (text ?? input).trim();
-    if (!content || loading) return;
-    setError(null);
+    if (!content || loading || hydrating || !conversationReady || requestInFlightRef.current) return;
+    if (content.length > CHAT_MESSAGE_MAX_LENGTH) {
+      setError(`El mensaje puede tener hasta ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`);
+      return;
+    }
+    requestInFlightRef.current = true;
+    const previousMessages = messages;
+    const optimisticMessages: ChatMessage[] = [...previousMessages, { role: "user", content }];
     setInput("");
-
-    const userMsg: ChatMessage = { role: "user", content };
-    setMessages((m) => [...m, userMsg]);
+    setError(null);
+    setMessages(optimisticMessages);
     setLoading(true);
-
     try {
-      const data = await sendChat(content);
-      setMessages((m) => [...m, { role: "assistant", content: data.response.content }]);
-      setValidation(data.response.validation);
-      // Update runtime display from the actual response (provider/model).
-      setRuntime((prev) =>
-        prev
-          ? { ...prev, provider: data.response.provider, model: data.response.model }
-          : {
-              provider: data.response.provider,
-              model: data.response.model,
-              configured: false,
-              mode: data.response.provider === "mock" ? "mock" : "real",
-            },
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error desconocido";
-      setError(msg);
-      setMessages((m) => [
-        ...m,
-        {
-          role: "assistant",
-          content: "No pude responder ahora. ¿Probamos de nuevo?",
-        },
-      ]);
+      const data = await sendChat(content, { character_id: bardera.id });
+      const completedMessages: ChatMessage[] = [
+        ...optimisticMessages,
+        { role: "assistant", content: data.response.content },
+      ];
+      setMessages(completedMessages);
+      try {
+        const summary = await getConversation({ character_id: bardera.id });
+        setMessages(summary.messages.map(({ role, content: storedContent }) => ({ role, content: storedContent })));
+      } catch {
+        setConversationReady(false);
+        setError("La respuesta llegó, pero no se pudo confirmar el hilo completo. Reintentá la sesión antes de seguir.");
+      }
+    } catch {
+      try {
+        const summary = await getConversation({ character_id: bardera.id });
+        setMessages(summary.messages.map(({ role, content: storedContent }) => ({ role, content: storedContent })));
+        setConversationReady(true);
+        setError("No se pudo confirmar el envío. El hilo visible se sincronizó con el servidor.");
+      } catch {
+        setMessages(previousMessages);
+        setConversationReady(false);
+        setError("No se pudo confirmar el envío ni recuperar el hilo. Reintentá la sesión antes de seguir.");
+      }
     } finally {
+      requestInFlightRef.current = false;
       setLoading(false);
     }
   };
 
-  const clearServerConversation = async () => {
-    if (loading) return;
+  const clear = async () => {
+    if (loading || hydrating || !conversationReady || requestInFlightRef.current) return;
+    requestInFlightRef.current = true;
+    const previousMessages = messages;
     setError(null);
     try {
-      await clearConversation();
-      // Reset the local chat to the canonical greeting so the UI does
-      // not show stale bubbles after the server state was cleared.
-      setMessages([{ role: "assistant", content: vane.greeting }]);
-      setValidation(null);
-      setServerTurnCount(0);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error desconocido";
-      setError(msg);
+      await clearConversation({ character_id: bardera.id });
+      setMessages([]);
+    } catch {
+      try {
+        const summary = await getConversation({ character_id: bardera.id });
+        setMessages(summary.messages.map(({ role, content }) => ({ role, content })));
+        setConversationReady(true);
+        setError("No se pudo confirmar el reinicio. El hilo visible se sincronizó con el servidor.");
+      } catch {
+        setMessages(previousMessages);
+        setConversationReady(false);
+        setError("No se pudo confirmar el reinicio ni recuperar el hilo. Reintentá la sesión antes de seguir.");
+      }
+    } finally {
+      requestInFlightRef.current = false;
     }
   };
 
-  const statusLabel = runtime
-    ? `provider: ${runtime.provider} · ${runtime.mode}`
-    : "provider: ...";
-
-  const turnLabel =
-    serverTurnCount !== null ? `turnos server: ${serverTurnCount}` : "turnos server: ...";
-
   return (
-    <section className="section" id="chat">
-      <div className="section-inner">
-        <div className="chat-grid">
-          {/* Side: profile summary */}
-          <div className="chat-side glass">
-            <div className="progress">Tu punto de partida</div>
-            <h3>Así podría sentirse</h3>
-            <p>
-              Una compañera adulta, creativa y con iniciativa medida. El perfil es editable
-              y queda separado de los ajustes temporales.
-            </p>
-            <dl>
-              {Object.entries(answers).map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
-                </div>
-              ))}
-            </dl>
-            <button className="secondary" onClick={onEdit}>
-              Volver y editar
-            </button>
+    <section className="chat-section" id="chat">
+      <div className="chat-heading">
+        <span className="eyebrow cyan">BETA ABIERTA</span>
+        <h2>HABLÁ CON<br /><span>LA BARDERA.</span></h2>
+        <p>Entrá directo. La configuración fina puede esperar.</p>
+      </div>
+      <div className="chat-layout">
+        <aside className="chat-presence">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={bardera.portrait} alt="La Bardera" width={1600} height={893} loading="lazy" decoding="async" />
+          <div className="presence-label"><i /><b>BETA ABIERTA</b><span>PREVIEW PÚBLICO</span></div>
+          <p>{bardera.tagline}</p>
+        </aside>
+        <div className="chat-window">
+          <header><div><b>{bardera.name}</b><span>{hydrating ? "RECUPERANDO" : conversationReady ? "SEÑAL LISTA" : "SIN CONEXIÓN"}</span></div><button onClick={clear} disabled={loading || hydrating || !conversationReady}>REINICIAR</button></header>
+          <div className="chat-messages" ref={scrollRef} aria-live="polite" aria-busy={hydrating || loading}>
+            {hydrating && <p className="chat-empty">SISTEMA · Recuperando esta sesión…</p>}
+            {!hydrating && conversationReady && messages.length === 0 && <p className="chat-empty">SISTEMA · La conversación empieza cuando enviás el primer mensaje.</p>}
+            {messages.map((message, index) => <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>{message.content}</div>)}
+            {loading && <div className="typing" aria-label="Escribiendo"><span /><span /><span /></div>}
           </div>
-
-          {/* Main: chat */}
-          <div className="chat-main glass-strong">
-            <div className="chat-header">
-              <div className="chat-avatar">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={vane.portrait} alt="" />
-              </div>
-              <div className="chat-header-info">
-                <h4>{vane.name}</h4>
-                <span className="status">{statusLabel}</span>
-              </div>
-            </div>
-
-            <div className="chat-messages" ref={scrollRef}>
-              {messages.map((m, i) => (
-                <div key={i} className={m.role === "user" ? "bubble user" : "bubble assistant"}>
-                  {m.content}
-                </div>
-              ))}
-              {loading && (
-                <div className="typing" aria-label="Escribiendo">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              )}
-            </div>
-
-            {messages.length <= 2 && !loading && (
-              <div className="quick-prompts">
-                {vane.quickPrompts.map((q) => (
-                  <button key={q} className="quick-prompt" onClick={() => send(q)}>
-                    {q}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="composer">
-              <input
-                aria-label="Mensaje"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
-                placeholder="Escribile algo a Vane..."
-                disabled={loading}
-              />
-              <button onClick={() => send()} disabled={loading || !input.trim()}>
-                Enviar
-              </button>
-            </div>
-
-            {error && (
-              <p className="chat-dev" style={{ color: "var(--magenta)" }}>
-                Error: {error}
-              </p>
-            )}
-            {validation && (
-              <p className="chat-dev">
-                Desarrollo: validación de salida {validation.is_valid ? "OK" : "rechazada"}
-                {validation.reasons.length > 0 && ` (${validation.reasons.join(", ")})`}
-              </p>
-            )}
-            <p className="chat-dev">
-              {turnLabel}{" "}
-              <button
-                type="button"
-                onClick={clearServerConversation}
-                disabled={loading}
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--violet, #a78bfa)",
-                  color: "var(--violet, #a78bfa)",
-                  borderRadius: "6px",
-                  padding: "2px 8px",
-                  marginLeft: "8px",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontSize: "0.85em",
-                }}
-                aria-label="Limpiar conversación server"
-              >
-                limpiar conversación
-              </button>
-            </p>
-            <div className="chat-media">▣ Video enviado · placeholder · no generado en vivo</div>
+          {messages.length === 0 && !loading && !hydrating && conversationReady && <div className="quick-prompts">{bardera.quickPrompts.map((prompt) => <button key={prompt} onClick={() => send(prompt)}>{prompt}</button>)}</div>}
+          <div className="composer">
+            <input
+              aria-label="Mensaje"
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => event.key === "Enter" && send()}
+              placeholder="Escribile algo..."
+              maxLength={CHAT_MESSAGE_MAX_LENGTH}
+              disabled={loading || hydrating || !conversationReady}
+            />
+            <button onClick={() => send()} disabled={loading || hydrating || !conversationReady || !input.trim()}>ENVIAR →</button>
           </div>
+          {error && <p className="chat-error" role="status">SISTEMA · {error}</p>}
+          {!hydrating && !conversationReady && <button className="chat-retry" onClick={() => void hydrateConversation()}>REINTENTAR SESIÓN</button>}
         </div>
       </div>
     </section>

@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Companion Studio — Una presencia con carácter",
-  description:
-    "Companion Studio: una compañera IA adulta con personalidad continua, " +
-    "arquitectura de memoria y presencia audiovisual. Prototipo visual cyber-noir.",
+  title: "RiotQueens.ai — Queen al frente",
+  description: "Experiencia de entretenimiento +18 con personajes virtuales y ficticios que interactúan mediante IA.",
 };
 
 export default function RootLayout({

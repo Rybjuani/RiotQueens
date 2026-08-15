@@ -1,6 +1,6 @@
 """Server-side conversation history store (in-process prototype).
 
-This module owns the in-process conversation state for Companion Studio.
+This module owns the in-process conversation state for RiotQueens.
 It is intentionally NOT a database; it is a prototype store suitable for
 single-process FastAPI runtimes. The Protocol-based interface
 (`ConversationStore`) is designed so a future PostgreSQL / Redis backend
@@ -11,13 +11,13 @@ Hard scope rules (Issue #5 + auditor fix PR #6)
 1. A conversation is identified by the tuple
    ``(user_id, character_id, conversation_id)``. The store MUST NOT mix
    messages across different users, characters, or conversation ids.
-2. The canonical Vane system prompt is NEVER stored here. It is prepended
-   to every model request from `app/domain/companions.py` at request time.
+2. The canonical Queen system prompt is NEVER stored here. It is prepended
+   to every model request from `app/domain/queens.py` at request time.
 3. Only validated assistant content actually returned to the user may be
    stored as an assistant turn. Provider failures (timeout, 429, 5xx,
    auth/config, connect, malformed, empty) MUST NOT append a fake turn.
 4. History is bounded deterministically by `max_turns`
-   (`COMPANION_CONVERSATION_MAX_TURNS`). The bound is applied to complete
+   (`RIOTQUEENS_CONVERSATION_MAX_TURNS`). The bound is applied to complete
    user/assistant pairs; truncation never leaves a half-pair. The bound
    is applied to the STORED RECORD itself (not just the provider context)
    so in-process state cannot grow without limit.
@@ -129,7 +129,7 @@ class StoredMessage:
 
     Only ``role`` values ``"user"`` and ``"assistant"`` are stored here.
     System prompts are never persisted — they are always re-prepended at
-    request time from `companions.py`.
+    request time from `queens.py`.
     """
 
     id: str
@@ -341,7 +341,7 @@ class InProcessConversationStore:
                 messages = await assemble_request_messages(...)
                 response = await router.generate(request)
                 await conversation_store.append_assistant_message(scope, response.content)
-                # OR on provider failure:
+                # OR on any post-append failure or cancellation:
                 await conversation_store.pop_last_user_message_if_match(scope, message)
 
         The lock is REENTRANT so the public methods called inside the
@@ -450,13 +450,12 @@ class InProcessConversationStore:
         with the given ``content``, remove it and return True. Otherwise
         return False and leave the history untouched.
 
-        This is used by the chat handler when the provider raises a typed
-        error: the user message we appended just before the call is
-        popped so history is left in the state it was BEFORE the failed
-        request. A subsequent retry re-appends the same user message
-        and, if the provider succeeds, appends a clean assistant turn
-        — producing a complete (user, assistant) pair with no leftover
-        failed half-turn.
+        This is used by the chat handler whenever context assembly,
+        request construction, provider execution or assistant storage
+        fails after the user append. The user message is popped so
+        history is left in the state it was BEFORE the failed request.
+        A subsequent retry can then produce a complete pair without a
+        leftover failed half-turn.
 
         After the pop, the stored record is re-pruned to the bound
         defensively (though it should already be bounded from the

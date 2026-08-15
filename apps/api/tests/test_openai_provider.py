@@ -14,6 +14,7 @@ from app.domain.contracts import MessageInput, ModelRequest, Route
 from app.domain.providers.errors import (
     ProviderAuthError,
     ProviderConnectError,
+    ProviderContentBlockedError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderRequestError,
@@ -28,7 +29,7 @@ from app.domain.validation import OutputValidator
 def _request() -> ModelRequest:
     return ModelRequest(
         route=Route.FAST_CHAT,
-        character_id="vane",
+        character_id="bardera",
         user_id="user",
         conversation_id="conversation",
         messages=[MessageInput(role="user", content="Hola")],
@@ -39,7 +40,7 @@ def _provider(transport: httpx.MockTransport) -> OpenAICompatibleProvider:
     return OpenAICompatibleProvider(
         base_url="https://api.example.com/v1",
         api_key="sk-test-fake",
-        model="companion-chat-v1",
+        model="riotqueens-chat-v1",
         timeout_seconds=5.0,
         transport=transport,
     )
@@ -57,7 +58,7 @@ async def test_success_returns_assistant_content() -> None:
     provider = _provider(httpx.MockTransport(lambda _: httpx.Response(200, json=_ok_payload())))
     response = await provider.generate(_request())
     assert response.provider == "openai-compatible"
-    assert response.model == "companion-chat-v1"
+    assert response.model == "riotqueens-chat-v1"
     assert response.content.startswith("¡Hola!")
     assert response.usage.input_tokens == 10
     assert response.usage.output_tokens == 8
@@ -123,6 +124,22 @@ async def test_invalid_upstream_shapes_raise_retryable_error(response: httpx.Res
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"choices": [{"finish_reason": "content_filter", "message": {"content": ""}}]},
+        {"promptFeedback": {"blockReason": "SAFETY"}},
+        {"error": {"status": "PROHIBITED_CONTENT"}},
+    ],
+)
+async def test_explicit_content_block_is_typed(payload: dict) -> None:
+    provider = _provider(httpx.MockTransport(lambda _: httpx.Response(200, json=payload)))
+    with pytest.raises(ProviderContentBlockedError):
+        await provider.generate(_request())
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
 async def test_api_key_is_header_only_not_payload() -> None:
     captured: dict[str, object] = {}
 
@@ -135,6 +152,26 @@ async def test_api_key_is_header_only_not_payload() -> None:
     await provider.generate(_request())
     assert captured["auth"] == "Bearer sk-test-fake"
     assert "sk-test-fake" not in str(captured["body"])
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
+async def test_compatibility_flag_omits_frequency_penalty() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_ok_payload())
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.example.com/v1",
+        api_key="sk-test-fake",
+        model="compat-model",
+        transport=httpx.MockTransport(handler),
+        omit_frequency_penalty=True,
+    )
+    await provider.generate(_request())
+    assert "frequency_penalty" not in captured["body"]
     await provider.aclose()
 
 

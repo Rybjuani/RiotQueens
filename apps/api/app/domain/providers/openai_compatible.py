@@ -8,6 +8,7 @@ belongs to FastAPI.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import httpx
@@ -16,12 +17,23 @@ from app.domain.contracts import ModelRequest, ModelResponse, Usage
 from app.domain.providers.errors import (
     ProviderAuthError,
     ProviderConnectError,
+    ProviderContentBlockedError,
     ProviderInvalidResponseError,
     ProviderRateLimitError,
     ProviderRequestError,
     ProviderServerError,
     ProviderTimeoutError,
 )
+
+
+def _env_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
 
 
 class OpenAICompatibleProvider:
@@ -35,9 +47,26 @@ class OpenAICompatibleProvider:
         *,
         timeout_seconds: float = 5.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        temperature: float | None = None,
+        frequency_penalty: float | None = None,
+        omit_frequency_penalty: bool = False,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.temperature = (
+            temperature
+            if temperature is not None
+            else _env_float("RIOTQUEENS_MODEL_TEMPERATURE", 0.9)
+        )
+        self.frequency_penalty = (
+            None
+            if omit_frequency_penalty
+            else (
+                frequency_penalty
+                if frequency_penalty is not None
+                else _env_float("RIOTQUEENS_MODEL_FREQUENCY_PENALTY", 0.4)
+            )
+        )
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             headers={
@@ -58,6 +87,8 @@ class OpenAICompatibleProvider:
             raise ProviderConnectError() from None
 
         status = response.status_code
+        if status == 400 and self._response_reports_content_block(response):
+            raise ProviderContentBlockedError() from None
         if status in (401, 403):
             raise ProviderAuthError() from None
         if status == 429:
@@ -75,6 +106,8 @@ class OpenAICompatibleProvider:
             raise ProviderInvalidResponseError() from None
         if not isinstance(data, dict):
             raise ProviderInvalidResponseError() from None
+        if self._payload_reports_content_block(data):
+            raise ProviderContentBlockedError() from None
 
         content = self._extract_content(data)
         if not content:
@@ -91,14 +124,19 @@ class OpenAICompatibleProvider:
         await self._client.aclose()
 
     def _build_payload(self, request: ModelRequest) -> dict[str, Any]:
-        return {
+        # Higher temperature + mild frequency_penalty reduce "corporate assistant"
+        # default wording; overridable via RIOTQUEENS_MODEL_* env.
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {"role": message.role, "content": message.content} for message in request.messages
             ],
-            "temperature": 0.8,
+            "temperature": self.temperature,
             "stream": False,
         }
+        if self.frequency_penalty is not None:
+            payload["frequency_penalty"] = self.frequency_penalty
+        return payload
 
     def _extract_content(self, data: dict[str, Any]) -> str:
         choices = data.get("choices")
@@ -124,3 +162,42 @@ class OpenAICompatibleProvider:
             )
         except (TypeError, ValueError):
             return Usage()
+
+    def _response_reports_content_block(self, response: httpx.Response) -> bool:
+        try:
+            data = response.json()
+        except ValueError:
+            return False
+        return isinstance(data, dict) and self._payload_reports_content_block(data)
+
+    @staticmethod
+    def _payload_reports_content_block(data: dict[str, Any]) -> bool:
+        blocked_reasons = {
+            "BLOCKED",
+            "BLOCKLIST",
+            "CONTENT_FILTER",
+            "PROHIBITED_CONTENT",
+            "SAFETY",
+        }
+
+        prompt_feedback = data.get("promptFeedback") or data.get("prompt_feedback")
+        if isinstance(prompt_feedback, dict):
+            reason = prompt_feedback.get("blockReason") or prompt_feedback.get("block_reason")
+            if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                return True
+
+        choices = data.get("choices")
+        if isinstance(choices, list):
+            for choice in choices:
+                if not isinstance(choice, dict):
+                    continue
+                reason = choice.get("finish_reason") or choice.get("finishReason")
+                if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                    return True
+
+        error = data.get("error")
+        if isinstance(error, dict):
+            reason = error.get("reason") or error.get("status")
+            if isinstance(reason, str) and reason.upper() in blocked_reasons:
+                return True
+        return False

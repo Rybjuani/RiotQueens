@@ -3,7 +3,7 @@
 These tests use a custom MockProvider that records the `ModelRequest` it
 receives, so we can verify the canonical context assembly:
 
-    system Vane prompt
+    system Bardera prompt
     → server-owned memory context (only if memories exist)
     → bounded conversation history (prior user/assistant turns)
     → current user message
@@ -19,11 +19,12 @@ import asyncio
 import importlib
 
 import pytest
-from fastapi.testclient import TestClient
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
+from app.domain.providers.errors import ProviderContentBlockedError
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
+from tests.asgi_test_client import SyncASGIClient as TestClient
 
 # ---------------------------------------------------------------------- #
 # Test fixtures — a capturing MockProvider + a fresh FastAPI app per test
@@ -86,9 +87,9 @@ def fresh_app(monkeypatch: pytest.MonkeyPatch):
     CapturingMockProvider so we can assert on the exact messages list
     the provider saw.
     """
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "8")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "8")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -121,22 +122,24 @@ async def test_A_first_message_provider_receives_system_and_user(fresh_app) -> N
     resp = client.post(
         "/v1/chat",
         json={
-            "message": "Hola Vane, ¿cómo estás?",
-            "character_id": "vane",
+            "message": "Hola Bardera, ¿cómo estás?",
+            "character_id": "bardera",
             "user_id": "user-A",
             "conversation_id": "conv-A",
         },
     )
     assert resp.status_code == 200
     assert len(capturing.captured_requests) == 1
-    msgs = capturing.captured_requests[0].messages
+    request = capturing.captured_requests[0]
+    assert request.route is Route.FAST_CHAT
+    msgs = request.messages
     roles = [m.role for m in msgs]
     # Exactly [system, user] — no prior history, no memory block.
     assert roles == ["system", "user"]
-    # System prompt is the canonical Vane prompt.
-    assert "Sos Vane" in msgs[0].content
+    # System prompt is the canonical Queen prompt.
+    assert "Sos La Bardera" in msgs[0].content
     # User content matches what was sent.
-    assert msgs[1].content == "Hola Vane, ¿cómo estás?"
+    assert msgs[1].content == "Hola Bardera, ¿cómo estás?"
 
 
 # ---------------------------------------------------------------------- #
@@ -152,7 +155,7 @@ async def test_B_second_message_provider_receives_prior_turn(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "primer mensaje",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-B",
             "conversation_id": "conv-B",
         },
@@ -162,7 +165,7 @@ async def test_B_second_message_provider_receives_prior_turn(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "segundo mensaje",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-B",
             "conversation_id": "conv-B",
         },
@@ -194,7 +197,7 @@ async def test_C_different_conversation_id_isolated(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "conv-1 msg",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-C",
             "conversation_id": "conv-C-1",
         },
@@ -203,7 +206,7 @@ async def test_C_different_conversation_id_isolated(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "conv-2 msg",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-C",
             "conversation_id": "conv-C-2",
         },
@@ -226,7 +229,7 @@ async def test_D_different_user_id_isolated(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "alice msg",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "alice",
             "conversation_id": "shared-conv",
         },
@@ -235,7 +238,7 @@ async def test_D_different_user_id_isolated(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "bob msg",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "bob",
             "conversation_id": "shared-conv",
         },
@@ -249,40 +252,95 @@ async def test_D_different_user_id_isolated(fresh_app) -> None:
 
 
 # ---------------------------------------------------------------------- #
-# E. Different character_id → fully isolated
+# E. Unknown Queens are rejected before touching runtime state
 # ---------------------------------------------------------------------- #
 
 
 @pytest.mark.asyncio
-async def test_E_different_character_id_isolated(fresh_app) -> None:
-    client, capturing, _ = fresh_app
-    client.post(
+@pytest.mark.parametrize(
+    ("method", "path", "payload"),
+    [
+        (
+            "POST",
+            "/v1/chat",
+            {
+                "message": "unknown queen message",
+                "character_id": "other-character",
+                "user_id": "user-E",
+                "conversation_id": "shared-conv",
+            },
+        ),
+        (
+            "GET",
+            "/v1/conversations/shared-conv?user_id=user-E&character_id=other-character",
+            None,
+        ),
+        (
+            "DELETE",
+            "/v1/conversations/shared-conv",
+            {"user_id": "user-E", "character_id": "other-character"},
+        ),
+        (
+            "GET",
+            "/v1/memories?user_id=user-E&character_id=other-character",
+            None,
+        ),
+        (
+            "POST",
+            "/v1/memories",
+            {
+                "user_id": "user-E",
+                "character_id": "other-character",
+                "content": "unknown queen memory",
+            },
+        ),
+        (
+            "DELETE",
+            "/v1/memories/00000000-0000-0000-0000-000000000000",
+            {"user_id": "user-E", "character_id": "other-character"},
+        ),
+    ],
+)
+async def test_E_unknown_queen_rejected_before_provider_or_store_access(
+    fresh_app, method: str, path: str, payload: dict[str, str] | None
+) -> None:
+    client, capturing, main_mod = fresh_app
+
+    resp = client.request(method, path, json=payload)
+
+    assert resp.status_code == 404
+    assert resp.json() == {
+        "detail": {
+            "code": "queen_not_found",
+            "message": "Queen is not available.",
+        }
+    }
+    assert capturing.captured_requests == []
+    assert main_mod.conversation_store._records == {}
+    assert main_mod.conversation_store._locks == {}
+    assert main_mod.memory_store._records == {}
+    assert main_mod.memory_store._locks == {}
+
+
+@pytest.mark.asyncio
+async def test_public_chat_route_cannot_be_selected_by_client(fresh_app) -> None:
+    client, capturing, main_mod = fresh_app
+
+    resp = client.post(
         "/v1/chat",
         json={
-            "message": "vane msg",
-            "character_id": "vane",
-            "user_id": "user-E",
-            "conversation_id": "shared-conv",
+            "message": "try vision route",
+            "character_id": "bardera",
+            "user_id": "user-route",
+            "conversation_id": "conversation-route",
+            "route": "vision",
         },
     )
-    client.post(
-        "/v1/chat",
-        json={
-            "message": "other msg",
-            "character_id": "other-character",
-            "user_id": "user-E",
-            "conversation_id": "shared-conv",
-        },
-    )
-    # The second request (character=other) must NOT contain the first
-    # request's messages.
-    msgs_2 = capturing.captured_requests[1].messages
-    contents = [m.content for m in msgs_2]
-    assert "vane msg" not in contents
-    assert "other msg" in contents
-    # And the second request should NOT have a system prompt (because
-    # "other-character" is not a registered companion — graceful).
-    assert msgs_2[0].role == "user"
+
+    assert resp.status_code == 422
+    assert capturing.captured_requests == []
+    assert main_mod.conversation_store._records == {}
+    assert main_mod.conversation_store._locks == {}
 
 
 # ---------------------------------------------------------------------- #
@@ -332,7 +390,7 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "primer mensaje que falla",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-F",
             "conversation_id": "conv-F",
         },
@@ -342,7 +400,7 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
 
     # Verify the failed user message was rolled back: GET the
     # conversation, it should be empty.
-    convo = client.get("/v1/conversations/conv-F?user_id=user-F&character_id=vane").json()
+    convo = client.get("/v1/conversations/conv-F?user_id=user-F&character_id=bardera").json()
     assert convo["messages"] == []
 
     # Second call: succeeds. Provider should receive [system, user]
@@ -351,7 +409,7 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "segundo mensaje después del fallo",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-F",
             "conversation_id": "conv-F",
         },
@@ -363,7 +421,7 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
     # doesn't store them. But we CAN verify via the GET endpoint that
     # the conversation now has exactly [user2, assistant2] — no failed
     # turn lingering.
-    convo_after = client.get("/v1/conversations/conv-F?user_id=user-F&character_id=vane").json()
+    convo_after = client.get("/v1/conversations/conv-F?user_id=user-F&character_id=bardera").json()
     msgs = convo_after["messages"]
     assert [m["role"] for m in msgs] == ["user", "assistant"]
     assert msgs[0]["content"] == "segundo mensaje después del fallo"
@@ -377,13 +435,13 @@ async def test_F_provider_failure_does_not_pollute_history(fresh_app) -> None:
 
 @pytest.mark.asyncio
 async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With COMPANION_CONVERSATION_MAX_TURNS=2, after sending 5 messages
+    """With RIOTQUEENS_CONVERSATION_MAX_TURNS=2, after sending 5 messages
     the provider should only receive the last 2 complete pairs + the
     current user message.
     """
-    monkeypatch.setenv("COMPANION_MODEL_PROVIDER", "mock")
-    monkeypatch.setenv("COMPANION_CONVERSATION_MAX_TURNS", "2")
-    monkeypatch.setenv("COMPANION_MEMORY_MAX_PER_SCOPE", "32")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "mock")
+    monkeypatch.setenv("RIOTQUEENS_CONVERSATION_MAX_TURNS", "2")
+    monkeypatch.setenv("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", "32")
 
     import app.main as main_mod
 
@@ -402,7 +460,7 @@ async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPa
             "/v1/chat",
             json={
                 "message": f"mensaje {i}",
-                "character_id": "vane",
+                "character_id": "bardera",
                 "user_id": "user-G",
                 "conversation_id": "conv-G",
             },
@@ -422,7 +480,7 @@ async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPa
     roles = [m.role for m in last_request.messages]
     contents = [m.content for m in last_request.messages]
     assert roles == ["system", "user", "assistant", "user", "assistant", "user"]
-    # contents[0] is the Vane system prompt. The rest should be:
+    # contents[0] is the Queen system prompt. The rest should be:
     # [user2, assistant3, user3, assistant4, user4] — i.e. the last 2
     # complete pairs (2,3) and (3,4) plus the trailing user4.
     assert contents[1] == "mensaje 2"
@@ -445,7 +503,7 @@ async def test_H_conversation_delete_clears_only_correct_scope(fresh_app) -> Non
         "/v1/chat",
         json={
             "message": "msg in conv-1",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-H",
             "conversation_id": "conv-H-1",
         },
@@ -454,7 +512,7 @@ async def test_H_conversation_delete_clears_only_correct_scope(fresh_app) -> Non
         "/v1/chat",
         json={
             "message": "msg in conv-2",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-H",
             "conversation_id": "conv-H-2",
         },
@@ -464,18 +522,18 @@ async def test_H_conversation_delete_clears_only_correct_scope(fresh_app) -> Non
     resp = client.request(
         "DELETE",
         "/v1/conversations/conv-H-1",
-        json={"user_id": "user-H", "character_id": "vane"},
+        json={"user_id": "user-H", "character_id": "bardera"},
     )
     assert resp.status_code == 200
     body = resp.json()
     assert body == {"deleted": True, "conversation_id": "conv-H-1"}
 
     # conv-1 is gone.
-    g1 = client.get("/v1/conversations/conv-H-1?user_id=user-H&character_id=vane").json()
+    g1 = client.get("/v1/conversations/conv-H-1?user_id=user-H&character_id=bardera").json()
     assert g1["messages"] == []
 
     # conv-2 is untouched.
-    g2 = client.get("/v1/conversations/conv-H-2?user_id=user-H&character_id=vane").json()
+    g2 = client.get("/v1/conversations/conv-H-2?user_id=user-H&character_id=bardera").json()
     roles = [m["role"] for m in g2["messages"]]
     assert roles == ["user", "assistant"]
     assert g2["messages"][0]["content"] == "msg in conv-2"
@@ -493,7 +551,7 @@ async def test_I_memory_post_creates_explicit_fact(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-I",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "Mi color favorito es negro.",
         },
     )
@@ -506,7 +564,7 @@ async def test_I_memory_post_creates_explicit_fact(fresh_app) -> None:
     assert body["inferred"] is False
     assert body["id"]
     assert body["user_id"] == "user-I"
-    assert body["character_id"] == "vane"
+    assert body["character_id"] == "bardera"
 
 
 # ---------------------------------------------------------------------- #
@@ -521,7 +579,7 @@ async def test_J_memory_get_only_returns_correct_scope(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "alice",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "alice fact 1",
         },
     )
@@ -529,7 +587,7 @@ async def test_J_memory_get_only_returns_correct_scope(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "alice",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "alice fact 2",
         },
     )
@@ -537,12 +595,12 @@ async def test_J_memory_get_only_returns_correct_scope(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "bob",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "bob fact 1",
         },
     )
-    alice = client.get("/v1/memories?user_id=alice&character_id=vane").json()
-    bob = client.get("/v1/memories?user_id=bob&character_id=vane").json()
+    alice = client.get("/v1/memories?user_id=alice&character_id=bardera").json()
+    bob = client.get("/v1/memories?user_id=bob&character_id=bardera").json()
     assert alice["count"] == 2
     assert {m["content"] for m in alice["memories"]} == {"alice fact 1", "alice fact 2"}
     assert bob["count"] == 1
@@ -561,7 +619,7 @@ async def test_K_memory_delete_correct_record(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-K",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "to delete",
         },
     )
@@ -571,7 +629,7 @@ async def test_K_memory_delete_correct_record(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-K",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "to keep",
         },
     )
@@ -580,7 +638,7 @@ async def test_K_memory_delete_correct_record(fresh_app) -> None:
     cross = client.request(
         "DELETE",
         f"/v1/memories/{memory_id}",
-        json={"user_id": "different-user", "character_id": "vane"},
+        json={"user_id": "different-user", "character_id": "bardera"},
     )
     assert cross.status_code == 404
     assert cross.json()["detail"]["code"] == "memory_not_found"
@@ -589,13 +647,13 @@ async def test_K_memory_delete_correct_record(fresh_app) -> None:
     ok = client.request(
         "DELETE",
         f"/v1/memories/{memory_id}",
-        json={"user_id": "user-K", "character_id": "vane"},
+        json={"user_id": "user-K", "character_id": "bardera"},
     )
     assert ok.status_code == 200
     assert ok.json() == {"deleted": True, "memory_id": memory_id}
 
     # The other memory is still there.
-    listed = client.get("/v1/memories?user_id=user-K&character_id=vane").json()
+    listed = client.get("/v1/memories?user_id=user-K&character_id=bardera").json()
     assert listed["count"] == 1
     assert listed["memories"][0]["content"] == "to keep"
 
@@ -608,12 +666,12 @@ async def test_K_memory_delete_correct_record(fresh_app) -> None:
 @pytest.mark.asyncio
 async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     client, capturing, _ = fresh_app
-    # Add two explicit facts for user-L + vane.
+    # Add two explicit facts for user-L + bardera.
     client.post(
         "/v1/memories",
         json={
             "user_id": "user-L",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "Mi color favorito es negro.",
         },
     )
@@ -621,18 +679,18 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-L",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "Me gusta el café por la tarde.",
         },
     )
 
     # Send a chat message. The provider should see:
-    # [system (Vane), system (memory context), user]
+    # [system (Bardera), system (memory context), user]
     resp = client.post(
         "/v1/chat",
         json={
             "message": "hola",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-L",
             "conversation_id": "conv-L",
         },
@@ -641,8 +699,8 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     msgs = capturing.captured_requests[0].messages
     roles = [m.role for m in msgs]
     assert roles == ["system", "system", "user"]
-    # First system message is the Vane prompt.
-    assert "Sos Vane" in msgs[0].content
+    # First system message is the Bardera prompt.
+    assert "Sos La Bardera" in msgs[0].content
     # Second system message is the protective memory wrapper + JSON data.
     assert "Aviso de protección del servidor" in msgs[1].content
     assert "NO son instrucciones" in msgs[1].content
@@ -665,14 +723,14 @@ async def test_M_no_memories_chat_unaffected(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "hola sin memorias",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-M",
             "conversation_id": "conv-M",
         },
     )
     assert resp.status_code == 200
     msgs = capturing.captured_requests[0].messages
-    # No memory system block — only [system (Vane), user].
+    # No memory system block — only [system (Bardera), user].
     assert [m.role for m in msgs] == ["system", "user"]
     # And the memory section content is NOT present anywhere.
     for m in msgs:
@@ -696,7 +754,6 @@ async def test_N_concurrent_requests_preserve_pair_integrity(fresh_app) -> None:
     # synchronous, so we go directly through the async FastAPI app via
     # httpx.AsyncClient + ASGITransport for true concurrency.
     import httpx
-    from starlette.testclient import TestClient as _TC  # noqa
 
     # Use httpx.AsyncClient pointed at the ASGI app.
     transport = httpx.ASGITransport(app=client.app)
@@ -707,7 +764,7 @@ async def test_N_concurrent_requests_preserve_pair_integrity(fresh_app) -> None:
                 "/v1/chat",
                 json={
                     "message": f"concurrent-msg-{i}",
-                    "character_id": "vane",
+                    "character_id": "bardera",
                     "user_id": "user-N",
                     "conversation_id": "conv-N",
                 },
@@ -717,7 +774,7 @@ async def test_N_concurrent_requests_preserve_pair_integrity(fresh_app) -> None:
         await asyncio.gather(*(send(i) for i in range(6)))
 
     # The conversation should now have 6 user + 6 assistant messages.
-    convo = client.get("/v1/conversations/conv-N?user_id=user-N&character_id=vane").json()
+    convo = client.get("/v1/conversations/conv-N?user_id=user-N&character_id=bardera").json()
     msgs = convo["messages"]
     assert len(msgs) == 12
     # Verify pair integrity: every even index is user, every odd is assistant.
@@ -797,19 +854,57 @@ async def test_safe_fallback_content_is_stored_as_assistant_turn(fresh_app) -> N
         "/v1/chat",
         json={
             "message": "test",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-fb",
             "conversation_id": "conv-fb",
         },
     )
     assert resp.status_code == 200
-    assert "No pude responder con seguridad" in resp.json()["response"]["content"]
+    assert "no la conversación" in resp.json()["response"]["content"]
 
     # The fallback content must be stored as the assistant turn.
-    convo = client.get("/v1/conversations/conv-fb?user_id=user-fb&character_id=vane").json()
+    convo = client.get("/v1/conversations/conv-fb?user_id=user-fb&character_id=bardera").json()
     msgs = convo["messages"]
     assert [m["role"] for m in msgs] == ["user", "assistant"]
-    assert "No pude responder con seguridad" in msgs[1]["content"]
+    assert "no la conversación" in msgs[1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_provider_guardrail_block_preserves_pair_and_character(fresh_app) -> None:
+    client, _, main_mod = fresh_app
+
+    class BlockedProvider:
+        name = "blocked-upstream"
+        model = "blocked-model"
+
+        async def generate(self, request: ModelRequest) -> ModelResponse:
+            raise ProviderContentBlockedError()
+
+    main_mod.router = ModelRouter(
+        providers={route: BlockedProvider() for route in Route},
+        validator=OutputValidator(),
+        max_retries=0,
+    )
+
+    resp = client.post(
+        "/v1/chat",
+        json={
+            "message": "No pierdas el hilo.",
+            "character_id": "bardera",
+            "user_id": "user-blocked",
+            "conversation_id": "conv-blocked",
+        },
+    )
+
+    assert resp.status_code == 200
+    response = resp.json()["response"]
+    assert "Gemini" not in response["content"]
+
+    convo = client.get(
+        "/v1/conversations/conv-blocked?user_id=user-blocked&character_id=bardera"
+    ).json()
+    assert [message["role"] for message in convo["messages"]] == ["user", "assistant"]
+    assert convo["messages"][1]["content"] == response["content"]
 
 
 @pytest.mark.asyncio
@@ -819,12 +914,12 @@ async def test_get_unknown_conversation_returns_empty_summary(fresh_app) -> None
     session).
     """
     client, _, _ = fresh_app
-    resp = client.get("/v1/conversations/never-existed?user_id=fresh-user&character_id=vane")
+    resp = client.get("/v1/conversations/never-existed?user_id=fresh-user&character_id=bardera")
     assert resp.status_code == 200
     body = resp.json()
     assert body["messages"] == []
     assert body["user_id"] == "fresh-user"
-    assert body["character_id"] == "vane"
+    assert body["character_id"] == "bardera"
     assert body["conversation_id"] == "never-existed"
 
 
@@ -836,7 +931,7 @@ async def test_memory_post_rejects_empty_content(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-X",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "",
         },
     )
@@ -851,7 +946,7 @@ async def test_memory_post_rejects_too_long_content(fresh_app) -> None:
         "/v1/memories",
         json={
             "user_id": "user-X",
-            "character_id": "vane",
+            "character_id": "bardera",
             "content": "a" * 501,
         },
     )
@@ -860,7 +955,7 @@ async def test_memory_post_rejects_too_long_content(fresh_app) -> None:
 
 @pytest.mark.asyncio
 async def test_chat_does_not_store_system_prompt(fresh_app) -> None:
-    """The canonical Vane system prompt must NEVER be stored in the
+    """The canonical Queen system prompt must NEVER be stored in the
     conversation history. GET /v1/conversations must only return user
     and assistant messages.
     """
@@ -869,12 +964,12 @@ async def test_chat_does_not_store_system_prompt(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "hola",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-SP",
             "conversation_id": "conv-SP",
         },
     )
-    convo = client.get("/v1/conversations/conv-SP?user_id=user-SP&character_id=vane").json()
+    convo = client.get("/v1/conversations/conv-SP?user_id=user-SP&character_id=bardera").json()
     roles = [m["role"] for m in convo["messages"]]
     assert "system" not in roles
     assert roles == ["user", "assistant"]
@@ -891,7 +986,7 @@ async def test_clear_conversation_then_send_starts_fresh(fresh_app) -> None:
         "/v1/chat",
         json={
             "message": "first message",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-CL",
             "conversation_id": "conv-CL",
         },
@@ -900,14 +995,14 @@ async def test_clear_conversation_then_send_starts_fresh(fresh_app) -> None:
     client.request(
         "DELETE",
         "/v1/conversations/conv-CL",
-        json={"user_id": "user-CL", "character_id": "vane"},
+        json={"user_id": "user-CL", "character_id": "bardera"},
     )
     # Send again — provider should see [system, user], NOT prior history.
     client.post(
         "/v1/chat",
         json={
             "message": "after clear",
-            "character_id": "vane",
+            "character_id": "bardera",
             "user_id": "user-CL",
             "conversation_id": "conv-CL",
         },

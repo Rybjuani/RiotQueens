@@ -20,7 +20,7 @@ from app.domain.memories import (
 )
 
 
-def _scope(user: str = "user-1", character: str = "vane") -> MemoryScopeKey:
+def _scope(user: str = "user-1", character: str = "queen-a") -> MemoryScopeKey:
     return MemoryScopeKey(user_id=user, character_id=character)
 
 
@@ -35,7 +35,7 @@ async def test_add_memory_returns_explicit_fact_record() -> None:
     assert rec.inferred is False
     assert rec.id  # stable id present
     assert rec.user_id == "user-1"
-    assert rec.character_id == "vane"
+    assert rec.character_id == "queen-a"
 
 
 @pytest.mark.asyncio
@@ -126,13 +126,13 @@ def test_memory_context_section_returns_protective_wrapper_with_json_data() -> N
         MemoryRecord(
             id="1",
             user_id="u",
-            character_id="vane",
+            character_id="queen-a",
             content="Mi color favorito es negro.",
         ),
         MemoryRecord(
             id="2",
             user_id="u",
-            character_id="vane",
+            character_id="queen-a",
             content="Me gusta el café por la tarde.",
         ),
     ]
@@ -148,9 +148,9 @@ def test_memory_context_section_returns_protective_wrapper_with_json_data() -> N
     assert '"content": "Me gusta el café por la tarde."' in section
 
 
-def test_memory_context_section_is_separate_from_vane_prompt() -> None:
-    """The memory section must NOT contain the canonical Vane system prompt
-    content (e.g. "Sos Vane"). It is its own block, prepended separately.
+def test_memory_context_section_is_separate_from_queen_prompt() -> None:
+    """The memory section must NOT contain the canonical Queen system prompt
+    content (e.g. "Sos La Bardera"). It is its own block, prepended separately.
     """
     from app.domain.memories import MemoryRecord
 
@@ -158,14 +158,14 @@ def test_memory_context_section_is_separate_from_vane_prompt() -> None:
         MemoryRecord(
             id="1",
             user_id="u",
-            character_id="vane",
+            character_id="queen-a",
             content="algo simple.",
         ),
     ]
     section = memory_context_section(records)
     assert section is not None
-    assert "Sos Vane" not in section
-    assert "compañera IA adulta" not in section
+    assert "Sos La Bardera" not in section
+    assert "personaje virtual ficticio" not in section
 
 
 def test_memory_context_section_adversarial_content_is_json_escaped() -> None:
@@ -183,7 +183,7 @@ def test_memory_context_section_adversarial_content_is_json_escaped() -> None:
         MemoryRecord(
             id="1",
             user_id="u",
-            character_id="vane",
+            character_id="queen-a",
             content=adversarial,
         ),
     ]

@@ -1,30 +1,35 @@
 /**
- * Per-browser-session conversation identifier.
+ * Per-browser-session conversation handle.
  *
- * Generates a UUID once per browser tab session and persists it in
- * `sessionStorage` so a page refresh keeps the same id, but a new tab
- * gets a fresh one. This is NOT persistent memory — `sessionStorage`
- * clears when the tab closes. It only gives the backend a stable
- * conversation handle for the current browser session.
+ * Generates one opaque conversation handle per browser tab session. A page
+ * refresh keeps it; the authenticated backend derives the actor identity.
  *
- * Per Issue #3 #8: "per-browser-session conversation identifier ...
- * refresh can reasonably keep the same session ... do not claim this
- * is persistent memory ... no database required."
+ * It is a resource identifier only, never an actor identity.
  */
 
-const STORAGE_KEY = "cs.conversation_id";
+const CONVERSATION_STORAGE_KEY = "rq.conversation_id";
+const LEGACY_CONVERSATION_STORAGE_KEY = "cs.conversation_id";
+const CLIENT_SCOPE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isClientScopeId(value: string): boolean {
+  return CLIENT_SCOPE_ID_PATTERN.test(value);
+}
 
 function generateId(): string {
-  // crypto.randomUUID is available in all modern browsers and secure
-  // contexts. Fall back to a RFC4122-v4-ish string for older envs.
+  // randomUUID requires a secure context in browsers. getRandomValues is
+  // the secure fallback for deployments where that convenience API is not
+  // exposed. Prototype scopes fail closed if Web Crypto is unavailable.
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  throw new Error("Secure random identifiers are unavailable.");
 }
 
 /**
@@ -32,28 +37,59 @@ function generateId(): string {
  * Creates and stores it on first access; reuses on subsequent calls
  * and across page refreshes within the same tab.
  */
-export function getConversationId(): string {
+function getSessionId(
+  storageKey: string,
+  ssrPlaceholder: string,
+  memoryKey: "conversation",
+  legacyStorageKey?: string,
+): string {
   if (typeof window === "undefined") {
-    // SSR / build-time: return a stable placeholder. The real id is
-    // generated client-side on first use.
-    return "ssr-placeholder";
+    return ssrPlaceholder;
   }
   try {
-    let id = sessionStorage.getItem(STORAGE_KEY);
+    let id = sessionStorage.getItem(storageKey);
+    if (id && !isClientScopeId(id)) {
+      sessionStorage.removeItem(storageKey);
+      id = null;
+    }
+    if (!id && legacyStorageKey) {
+      id = sessionStorage.getItem(legacyStorageKey);
+      if (id && isClientScopeId(id)) {
+        sessionStorage.setItem(storageKey, id);
+        sessionStorage.removeItem(legacyStorageKey);
+      } else if (id) {
+        sessionStorage.removeItem(legacyStorageKey);
+        id = null;
+      }
+    }
     if (!id) {
       id = generateId();
-      sessionStorage.setItem(STORAGE_KEY, id);
+      sessionStorage.setItem(storageKey, id);
     }
     return id;
   } catch {
-    // sessionStorage may be unavailable (private mode, disabled). Fall
-    // back to an in-memory id for the current page lifecycle.
-    return getInMemoryId();
+    return getInMemoryId(memoryKey);
   }
 }
 
-let _inMemoryId: string | null = null;
-function getInMemoryId(): string {
-  if (!_inMemoryId) _inMemoryId = generateId();
-  return _inMemoryId;
+const inMemoryIds: { conversation: string | null } = {
+  conversation: null,
+};
+
+function getInMemoryId(key: "conversation"): string {
+  const existing = inMemoryIds[key];
+  if (existing) return existing;
+  const generated = generateId();
+  inMemoryIds[key] = generated;
+  return generated;
+}
+
+/** Stable conversation handle for this browser tab session. */
+export function getConversationId(): string {
+  return getSessionId(
+    CONVERSATION_STORAGE_KEY,
+    "ssr-conversation",
+    "conversation",
+    LEGACY_CONVERSATION_STORAGE_KEY,
+  );
 }

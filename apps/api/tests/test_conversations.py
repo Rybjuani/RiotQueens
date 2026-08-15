@@ -22,7 +22,7 @@ from app.domain.conversations import (
 
 def _scope(
     user: str = "user-1",
-    character: str = "vane",
+    character: str = "queen-a",
     conv: str = "conv-1",
 ) -> ConversationScopeKey:
     return ConversationScopeKey(user_id=user, character_id=character, conversation_id=conv)
