@@ -156,6 +156,26 @@ async def test_api_key_is_header_only_not_payload() -> None:
 
 
 @pytest.mark.asyncio
+async def test_compatibility_flag_omits_frequency_penalty() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_ok_payload())
+
+    provider = OpenAICompatibleProvider(
+        base_url="https://api.example.com/v1",
+        api_key="sk-test-fake",
+        model="compat-model",
+        transport=httpx.MockTransport(handler),
+        omit_frequency_penalty=True,
+    )
+    await provider.generate(_request())
+    assert "frequency_penalty" not in captured["body"]
+    await provider.aclose()
+
+
+@pytest.mark.asyncio
 async def test_validator_invalid_content_still_uses_safe_content_fallback() -> None:
     provider = _provider(
         httpx.MockTransport(

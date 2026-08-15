@@ -8,7 +8,7 @@ La propuesta de GPU cloud para producción visual está separada de este laborat
 
 ## Google AI Studio
 
-`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. Las corridas controladas del 2026-08-15 con `gemini-2.5-flash` respondieron hasta seis turnos del glosario sin hard-fail, pero terminaron por infraestructura antes de completar la batería (timeout en T6; `HTTPStatusError` en T7; nueva corrida sin few-shot con HTTP 429 en T3). Todavía falta una batería de voz completa y una prueba multimodal reproducible. La credencial detectada en `.env_final(1)` no se copia ni se versiona. No hay evidencia de que haya sido publicada o commiteada; la rotación sólo corresponde si aparece evidencia de exposición efectiva, un log compartido o una instrucción del owner. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
+`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. `gemini-2.5-flash` respondió hasta seis turnos del glosario sin hard-fail, pero terminó por infraestructura antes de completar la batería (timeout en T6; `HTTPStatusError` en T7; nueva corrida sin few-shot con HTTP 429 en T3); su RPD visible está agotado. En cambio, `gemini-3.1-flash-lite`, mediante el endpoint OpenAI-compatible, completó el 2026-08-15 dos baterías directas de 12/12 turnos —con y sin few-shot— con `temperature=0.9`, `max_tokens=512`, sin truncaciones, sin claims de adjuntos y sin hard-fails heurísticos. La cuota visible de 15 RPM requiere espaciar a 4.1 s. Ese endpoint rechaza `frequency_penalty`: el adapter soporta omitirlo mediante `RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY=true`. Sigue pendiente la corrida equivalente por la API RiotQueens antes de declarar candidato de runtime. La credencial detectada en `.env_final(1)` no se copia ni se versiona. No hay evidencia de que haya sido publicada o commiteada; la rotación sólo corresponde si aparece evidencia de exposición efectiva, un log compartido o una instrucción del owner. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
 
 ## Gemma local
 
@@ -22,7 +22,8 @@ Esto no autoriza a agregar GPU, Ollama o almacenamiento persistente al producto 
 |---|---|---|---|
 | OpenRouter/Llama | baseline de conversación Bardera | FAIL: 12 turnos, 4 hard-fails | recalibrar prompt/modelo o reemplazar |
 | Hugging Face Router | fallback compatible | INFRA/PERSONALIDAD: HTTP 200 inicial, 5 hard-fails y HTTP 402 en T10 | resolver cuota/pago y repetir batería |
-| Google AI Studio | laboratorio multimodal / comparación | INFRA: 5 turnos sin hard-fail, timeout en T6 | resolver latencia y repetir batería |
+| Google AI Studio / Gemini 2.5 Flash | comparación | INFRA: 5 turnos sin hard-fail, timeout en T6; RPD agotado | no reintentar hasta nueva cuota |
+| Google AI Studio / Gemini 3.1 Flash Lite | candidato texto Bardera | DIRECT PASS_HEURISTIC: 2×12/12, con/sin few-shot, sin truncación ni claim de adjuntos | correr batería vía API RiotQueens y revisar muestra |
 | Google AI Studio + Gemma | benchmark alternativo de personalidad | FAIL/INFRA: 10 turnos, 4 hard-fails, HTTP 429 y `<thought>` visible | limitar pensamiento, resolver cuota y repetir |
 | Gemma vía Ollama | laboratorio local de bajo volumen | PROPUESTA | reproducibilidad, VRAM/latencia y benchmark |
 

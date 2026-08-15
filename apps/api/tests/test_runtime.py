@@ -174,6 +174,20 @@ def test_build_router_openai_with_credentials_wires_adapter(
     assert "sk-test-fake" not in str(status)
 
 
+def test_build_router_can_omit_frequency_penalty_for_compatibility_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_BASE_URL", "https://api.example.com/v1")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_API_KEY", "sk-test-fake")
+    monkeypatch.setenv("RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY", "true")
+
+    rt = build_router()
+
+    sample = rt.providers[Route.FAST_CHAT]
+    assert getattr(sample, "frequency_penalty") is None
+
+
 def test_runtime_status_no_secret_leak_for_openai(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RIOTQUEENS_MODEL_PROVIDER", "openai")
     monkeypatch.setenv("RIOTQUEENS_MODEL_BASE_URL", "https://api.example.com/v1")

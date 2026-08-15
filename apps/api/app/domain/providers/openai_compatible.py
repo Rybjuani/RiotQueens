@@ -49,6 +49,7 @@ class OpenAICompatibleProvider:
         transport: httpx.AsyncBaseTransport | None = None,
         temperature: float | None = None,
         frequency_penalty: float | None = None,
+        omit_frequency_penalty: bool = False,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -58,9 +59,13 @@ class OpenAICompatibleProvider:
             else _env_float("RIOTQUEENS_MODEL_TEMPERATURE", 0.9)
         )
         self.frequency_penalty = (
-            frequency_penalty
-            if frequency_penalty is not None
-            else _env_float("RIOTQUEENS_MODEL_FREQUENCY_PENALTY", 0.4)
+            None
+            if omit_frequency_penalty
+            else (
+                frequency_penalty
+                if frequency_penalty is not None
+                else _env_float("RIOTQUEENS_MODEL_FREQUENCY_PENALTY", 0.4)
+            )
         )
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
@@ -121,15 +126,17 @@ class OpenAICompatibleProvider:
     def _build_payload(self, request: ModelRequest) -> dict[str, Any]:
         # Higher temperature + mild frequency_penalty reduce "corporate assistant"
         # default wording; overridable via RIOTQUEENS_MODEL_* env.
-        return {
+        payload: dict[str, Any] = {
             "model": self.model,
             "messages": [
                 {"role": message.role, "content": message.content} for message in request.messages
             ],
             "temperature": self.temperature,
-            "frequency_penalty": self.frequency_penalty,
             "stream": False,
         }
+        if self.frequency_penalty is not None:
+            payload["frequency_penalty"] = self.frequency_penalty
+        return payload
 
     def _extract_content(self, data: dict[str, Any]) -> str:
         choices = data.get("choices")

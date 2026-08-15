@@ -156,6 +156,13 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = _env(name).strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 def build_router() -> ModelRouter:
     """Construct the canonical ModelRouter from server-side env vars."""
     provider_kind = _env("RIOTQUEENS_MODEL_PROVIDER", "mock").strip().lower()
@@ -174,6 +181,7 @@ def build_router() -> ModelRouter:
                 api_key=api_key,
                 model=model_name,
                 timeout_seconds=timeout,
+                omit_frequency_penalty=_env_bool("RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY"),
             )
             providers: Mapping[Route, ModelProvider] = {route: adapter for route in Route}
             fallback_providers: Mapping[Route, Sequence[ModelProvider]] = {}
@@ -192,6 +200,9 @@ def build_router() -> ModelRouter:
                     api_key=fallback_api_key,
                     model=fallback_model,
                     timeout_seconds=timeout,
+                    omit_frequency_penalty=_env_bool(
+                        "RIOTQUEENS_FALLBACK_MODEL_OMIT_FREQUENCY_PENALTY"
+                    ),
                 )
                 fallback_providers = {route: (fallback_adapter,) for route in Route}
             return ModelRouter(

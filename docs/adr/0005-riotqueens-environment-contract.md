@@ -20,15 +20,18 @@ El primer despliegue público todavía no había ocurrido al adoptar este ADR, p
   - `RIOTQUEENS_MODEL_NAME`;
   - `RIOTQUEENS_MODEL_TIMEOUT_SECONDS`;
   - `RIOTQUEENS_MODEL_MAX_RETRIES`;
+  - `RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY`;
   - `RIOTQUEENS_FALLBACK_MODEL_PROVIDER`;
   - `RIOTQUEENS_FALLBACK_MODEL_BASE_URL`;
   - `RIOTQUEENS_FALLBACK_MODEL_API_KEY`;
   - `RIOTQUEENS_FALLBACK_MODEL_NAME`.
+  - `RIOTQUEENS_FALLBACK_MODEL_OMIT_FREQUENCY_PENALTY`.
 - CORS, conversación y memoria siguen la misma regla: `RIOTQUEENS_CORS_ORIGINS`, `RIOTQUEENS_CONVERSATION_MAX_TURNS` y `RIOTQUEENS_MEMORY_MAX_PER_SCOPE`.
 - El runtime no acepta aliases `COMPANION_*`. Un nombre único evita que dos secretos o proveedores compitan silenciosamente.
 - Los nombres anteriores sólo pueden aparecer como contexto histórico explícito de una migración; no forman parte del contrato ni de la documentación operativa vigente.
 - Los contratos internos continúan siendo independientes del proveedor: `openai` identifica el adaptador compatible, no una marca de producto ni un modelo concreto.
 - El sufijo de proveedor incluido en un identificador remoto, por ejemplo `:ovhcloud`, es configuración de infraestructura y no se filtra al dominio.
+- Un adaptador compatible puede omitir `frequency_penalty` mediante su flag explícito cuando una API lo rechace. No se infiere por nombre de modelo: exige smoke documentado y conserva el default para los demás proveedores.
 
 ## Consecuencias
 

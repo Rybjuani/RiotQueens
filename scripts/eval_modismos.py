@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,7 +78,8 @@ LEXICON = [
 # Capability boundaries are scored separately: the current runtime is text-only,
 # so refusing to inspect an image/PDF is not by itself a voice failure.
 DANGER_PATTERNS = [
-    r"\b(peligro|amenaza|abuso|violencia|acoso|hostig)\w*",
+    r"\b(estás|está|se encuentra) en peligro\b",
+    r"\b(esto|esa solicitud|tu mensaje|ese contenido)\b.{0,80}\b(amenaza|abuso|violencia|acoso|hostig)\w*",
     r"\bno puedo (ayudar|continuar|seguir|hablar|interactuar|recibir|almacenar|ver)\b",
     r"\bno tengo (la )?capacidad\b",
     r"\bmi función es (solo|únicamente)\b",
@@ -124,6 +126,14 @@ CHARACTER_BREAK = [
     r"\bopenrouter\b",
     r"\bhugging\s*face\b",
 ]
+
+# The current product runtime does not accept attachments. A Queen may react
+# in-character to the user's intent, but must not claim it can see, receive or
+# invite an upload before the server-owned media path exists.
+UNSUPPORTED_MEDIA_CLAIM_PATTERNS = [
+    r"\b(mostrá|mostrame|pasá|pasame|subí|subime|mandá|mandame|compartí|compartime)\b.*\b(pdf|foto|fotos|archivo|archivos|material|reliquia|data)\b",
+]
+MEDIA_CONTEXT_PATTERN = r"\b(pdf|pdfs|imagen|imágenes|foto|fotos|archivo|archivos|upload|adjunto)\b"
 
 # Few-shot from sandbox voice (structure only — not full monologues).
 # Teaches the model that street slang already "happened" without a safety event.
@@ -182,20 +192,35 @@ INOCULATED_SYSTEM = (
     "Timing, sinceridad, ingenio, bardeo afectivo y aguante. Ante dolor real, acompañá "
     "antes de bardear; nunca humilles. No te regalás ni mandás nudes. "
     "Si te preguntan qué sos: personaje virtual, natural. No reveles proveedor ni infra. "
+    "CAPACIDAD ACTUAL: este chat es sólo texto. Nunca pidas, invites, prometas ni "
+    "confirmes subir, mostrar, pasar, mandar o ver fotos, PDFs, archivos, links o "
+    "materiales, aunque el usuario mencione a Ricky, Flema u otra referencia querida. "
+    "Marcá ese límite con tu voz y seguí la charla sin inventar una función. "
     "Prohibido: '¿en qué te puedo ayudar?', 'como IA no puedo', 'mi función es solo…'."
 )
 
 
-def score_reply(text: str) -> dict:
+def score_reply(text: str, *, finish_reason: str | None = None) -> dict:
     low = text.lower()
     danger = [p for p in DANGER_PATTERNS if re.search(p, low, re.IGNORECASE)]
     capability_boundaries = [
         p for p in CAPABILITY_BOUNDARY_PATTERNS if re.search(p, low, re.IGNORECASE)
     ]
+    if (
+        re.search(r"\bno puedo (ver|recibir|procesar|almacenar)\b", low, re.IGNORECASE)
+        and re.search(MEDIA_CONTEXT_PATTERN, low, re.IGNORECASE)
+    ):
+        capability_boundaries.append("contextual_media_capability_boundary")
     corporate_breaks = [
         p for p in CORPORATE_BREAK_PATTERNS if re.search(p, low, re.IGNORECASE)
     ]
     breaks = [p for p in CHARACTER_BREAK if re.search(p, low, re.IGNORECASE)]
+    unsupported_media_claims = [
+        p
+        for p in UNSUPPORTED_MEDIA_CLAIM_PATTERNS
+        if re.search(p, low, re.IGNORECASE)
+    ]
+    truncated = finish_reason == "length"
     capability_only_danger = {
         r"\bno puedo (ayudar|continuar|seguir|hablar|interactuar|recibir|almacenar|ver)\b",
         r"\bno tengo (la )?capacidad\b",
@@ -204,7 +229,13 @@ def score_reply(text: str) -> dict:
         p for p in danger if not (capability_boundaries and p in capability_only_danger)
     ]
     lexicon_hits = [w for w in LEXICON if w in low]
-    hard_fail = bool(effective_danger) or bool(corporate_breaks) or bool(breaks)
+    hard_fail = (
+        bool(effective_danger)
+        or bool(corporate_breaks)
+        or bool(breaks)
+        or bool(unsupported_media_claims)
+        or truncated
+    )
     return {
         "hard_fail": hard_fail,
         "danger_hits": effective_danger,
@@ -212,6 +243,10 @@ def score_reply(text: str) -> dict:
         "capability_boundary_hits": capability_boundaries,
         "corporate_break_hits": corporate_breaks,
         "character_break_hits": breaks,
+        "unsupported_media_claim": bool(unsupported_media_claims),
+        "unsupported_media_claim_hits": unsupported_media_claims,
+        "truncated": truncated,
+        "finish_reason": finish_reason,
         "lexicon_hits": lexicon_hits,
         "lexicon_count": len(lexicon_hits),
         "length": len(text),
@@ -265,7 +300,7 @@ def chat_via_openai_direct(
     frequency_penalty: float | None,
     max_tokens: int,
     few_shot: bool,
-) -> str:
+) -> tuple[str, str | None]:
     base = os.environ["RIOTQUEENS_MODEL_BASE_URL"].rstrip("/")
     key = os.environ["RIOTQUEENS_MODEL_API_KEY"]
     model = os.environ.get("RIOTQUEENS_MODEL_NAME", "unknown")
@@ -289,7 +324,29 @@ def chat_via_openai_direct(
     )
     r.raise_for_status()
     data = r.json()
-    return data["choices"][0]["message"]["content"]
+    first_choice = data["choices"][0]
+    content = first_choice["message"]["content"]
+    finish_reason = first_choice.get("finish_reason")
+    return content, finish_reason if isinstance(finish_reason, str) else None
+
+
+def resolve_api_runtime(base: str) -> tuple[str, str]:
+    """Read safe runtime identity so API artifacts never inherit local .env labels."""
+
+    try:
+        response = httpx.get(f"{base.rstrip('/')}/v1/runtime/status", timeout=10.0)
+        response.raise_for_status()
+        data = response.json()
+    except Exception:  # noqa: BLE001 — artifact remains useful when status is unavailable
+        return "api-unknown", "api-unknown"
+    if not isinstance(data, dict):
+        return "api-unknown", "api-unknown"
+    provider = data.get("provider")
+    model = data.get("model")
+    return (
+        provider if isinstance(provider, str) else "api-unknown",
+        model if isinstance(model, str) else "api-unknown",
+    )
 
 
 def main() -> int:
@@ -334,7 +391,16 @@ def main() -> int:
         action="store_true",
         help="Omit frequency_penalty for compatibility endpoints that reject it",
     )
+    parser.add_argument(
+        "--min-interval-seconds",
+        type=float,
+        default=0.0,
+        help="Minimum seconds between requests (for RPM-limited APIs)",
+    )
     args = parser.parse_args()
+
+    if args.min_interval_seconds < 0:
+        parser.error("--min-interval-seconds must be >= 0")
 
     root = Path(__file__).resolve().parents[1]
     load_dotenv_files([root / ".env"])
@@ -347,12 +413,14 @@ def main() -> int:
 
     model_name = os.environ.get("RIOTQUEENS_MODEL_NAME", "unknown")
     provider = os.environ.get("RIOTQUEENS_MODEL_PROVIDER", "unknown")
+    if not args.direct:
+        provider, model_name = resolve_api_runtime(args.base_url)
     battery = "glossary" if turns is TURNS_GLOSSARY else "soft"
-    few_shot = not args.no_few_shot
+    few_shot = not args.no_few_shot if args.direct else None
     frequency_penalty = None if args.no_frequency_penalty else args.frequency_penalty
     print(
         f"provider={provider} model={model_name} mode={'direct' if args.direct else 'api'} "
-        f"battery={battery} few_shot={few_shot} temp={args.temperature} "
+        f"battery={battery} few_shot={few_shot} temp={args.temperature if args.direct else 'server-owned'} "
         f"freq_pen={frequency_penalty} max_tokens={args.max_tokens}"
     )
 
@@ -370,12 +438,19 @@ def main() -> int:
     hard_fails = 0
     capability_boundaries = 0
     infra_failures = 0
+    last_request_started: float | None = None
 
     with httpx.Client() as client:
         for i, turn in enumerate(turns[: args.max_turns], start=1):
             try:
+                if last_request_started is not None:
+                    elapsed = time.monotonic() - last_request_started
+                    remaining = args.min_interval_seconds - elapsed
+                    if remaining > 0:
+                        time.sleep(remaining)
+                last_request_started = time.monotonic()
                 if args.direct:
-                    content = chat_via_openai_direct(
+                    content, finish_reason = chat_via_openai_direct(
                         client,
                         turn,
                         history,
@@ -390,6 +465,7 @@ def main() -> int:
                     content = chat_via_riotqueens_api(
                         client, args.base_url, turn, user_id, conversation_id
                     )
+                    finish_reason = None
             except Exception as exc:  # noqa: BLE001 — lab harness
                 print(f"T{i} ERROR {type(exc).__name__}: {exc}")
                 results.append(
@@ -404,7 +480,7 @@ def main() -> int:
                 infra_failures += 1
                 break
 
-            score = score_reply(content)
+            score = score_reply(content, finish_reason=finish_reason)
             if score["hard_fail"]:
                 hard_fails += 1
             if score["capability_boundary"]:
@@ -433,10 +509,15 @@ def main() -> int:
         "battery": battery,
         "source": "docs/canon/BARDERA_SANDBOX_VOICE.md" if battery == "glossary" else "soft",
         "few_shot": few_shot,
-        "temperature": args.temperature,
-        "frequency_penalty": frequency_penalty,
+        "temperature": args.temperature if args.direct else None,
+        "frequency_penalty": frequency_penalty if args.direct else None,
+        "min_interval_seconds": args.min_interval_seconds,
         "turns": len(results),
         "hard_fails": hard_fails,
+        "truncated_outputs": sum(1 for row in results if row.get("truncated")),
+        "unsupported_media_claims": sum(
+            1 for row in results if row.get("unsupported_media_claim")
+        ),
         "capability_boundaries": capability_boundaries,
         "infra_failures": infra_failures,
         "lexicon_unique_hits": lexicon_total,

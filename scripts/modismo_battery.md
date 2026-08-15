@@ -58,6 +58,8 @@ cd /home/rybjuani/Escritorio/RiotQueens-worktree
 python3 scripts/eval_modismos.py --direct --from-glossary --max-turns 12
 # baseline sin few-shot:
 python3 scripts/eval_modismos.py --direct --from-glossary --no-few-shot --max-turns 12
+# Gemini 3.1 Flash Lite (15 RPM): evitar que la propia batería provoque 429.
+python3 scripts/eval_modismos.py --direct --from-glossary --max-turns 12 --no-frequency-penalty --min-interval-seconds 4.1
 ```
 
 The harness reads only the canonical root `.env` plus explicit process
