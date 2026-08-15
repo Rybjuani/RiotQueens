@@ -249,6 +249,12 @@ El lanzamiento es `library-first`. Ante un pedido de selfie, el LLM emite una in
 - Docker Compose en el VPS CPU;
 - Cloud Lab GPU separado del runtime del producto.
 
+### Data plane productivo y jurisdicción
+
+**VERIFICADO:** el data plane propio actual es un OVHcloud VPS-2 `riotqueens.ai`, Ubuntu 24.04, 4 vCores, 8 GB RAM y 75 GB NVMe, en región OpenStack `os-bhs6`: BHS / Beauharnois, Québec, Canadá. Tiene backup automatizado diario con retención de un día, red pública de 1 Gb/s y tráfico ilimitado. OVH identifica BHS como Beauharnois y su ficha VPS-2 confirma esta capacidad y el backup de 24 h ([OVHcloud](https://www.ovhcloud.com/en-ca/vps/vps-canada/)).
+
+Para el análisis de transferencias desde Argentina, Canadá —respecto de su sector privado— figura entre los países con nivel adecuado en la guía oficial ([Argentina.gob.ar](https://www.argentina.gob.ar/transferencias-internacionales)). Esta ubicación describe el plano de datos propio; no convierte automáticamente a un proveedor externo de identidad, email, LLM, analytics o pagos en procesamiento canadiense, ni sustituye la revisión legal, contractual o de privacidad aplicable.
+
 ### Estado verificado del código actual
 
 - existen web Next.js y API FastAPI;

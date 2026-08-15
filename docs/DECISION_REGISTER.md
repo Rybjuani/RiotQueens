@@ -289,7 +289,7 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 
 ### VERIFICADO
 
-- VPS activo: Ubuntu 24.04, 4 vCore, 8 GB RAM, 75 GB y dirección IPv4 `148.113.167.121`.
+- El data plane productivo es el OVHcloud VPS-2 `riotqueens.ai`: Ubuntu 24.04, 4 vCore, 8 GB RAM, 75 GB NVMe, región OpenStack `os-bhs6` / BHS Beauharnois, Québec, Canadá; backup automático diario de un día, red pública 1 Gb/s y tráfico ilimitado. La autoridad detallada de jurisdicción y alcance está en `SPECT.md` §7; no se lo analiza como infraestructura en EE.UU.
 - Runtime HTTP por IP desplegado y verificado; DNS/TLS siguen pendientes.
 - El repo contiene router de proveedor, API FastAPI, web Next.js, Caddy y Compose.
 
