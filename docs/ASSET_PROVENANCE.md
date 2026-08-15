@@ -12,6 +12,8 @@ Cada Queen mantiene **memoria y conversación aisladas** en backend por `charact
 
 Pool fuente: `Escritorio/RiotQueens/RiotQueens Seleccionadas/` (no se sirve desde el VPS). Flow y Mage son ecosistemas canónicos externos del owner y contienen material ya producido; los assets de esos ecosistemas sólo se vuelven parte del repo mediante una copia/derivado con procedencia y hash.
 
+**Evidencia recuperada:** la sesión viva de Grok que creó el roster dejó el índice estructurado y los hashes, posteriormente incorporados en el commit `093bc32`: 21 entradas allowlisted (logo + Bardera 5, Tóxica 5, Gede 5, Rocha 2 y Chela 5). El estado verificable es `config/public-media.json` junto con esta tabla; no corresponde recatalogar esos previews desde cero. La selección final de masters/derivados sigue siendo del owner.
+
 ## Brand
 
 | Ruta web | Estado | Fuente | SHA-256 |
