@@ -18,13 +18,13 @@ Los archivos externos quedan fuera del repo porque pueden contener material priv
 | `📕-DESCARGAR-PDF-Riot-Queens-Cloud-Lab.pdf` | `bb3f8f57a3913327894faa4c373fd839e9932272a22128103037e07e1d69a944` | propuesta de laboratorio |
 | `📕-DESCARGAR-PDF-V2-Guía-Visual-Completa.pdf` | `25af98ee74e1d40ca9c910f40747b298b692248fcd590aeba9ac13f9984b92cc` | propuesta de workflow y costos |
 
-Los tiempos, precios y nombres de instancias de esas capturas son `CLAIM HISTÓRICO / VARIABLE`. Además, el owner informa que Flow y Mage ya están cubiertos por suscripciones con generación amplia. Por eso el costo marginal de una selfie no debe modelarse automáticamente como GPU × segundos × imagen: primero se debe medir el uso real y los límites de esas suscripciones.
+Los tiempos, precios y nombres de instancias de esas capturas son `CLAIM HISTÓRICO / VARIABLE`. El owner declara además que Flow y Mage son ecosistemas canónicos de producción visual, ya cubiertos por suscripciones y con material masivo existente. Por eso el costo marginal de una selfie no debe modelarse automáticamente como GPU × segundos × imagen: primero se debe respetar ese patrimonio, clasificarlo y medir los límites reales de esas suscripciones.
 
 ## Decisión de arquitectura
 
 El VPS actual es CPU y continúa siendo la casa del producto: API, autorización, colas, adaptadores, storage y entrega. El Cloud Lab es un proveedor opcional de producción o procesamiento visual, separado del runtime conversacional. No se instala una GPU local ni Ollama en el VPS para resolver este caso.
 
-La primera versión del producto sigue siendo `library-first`: assets preproducidos, curados y trazables. Flow y Mage son rutas externas de generación amplia que deben evaluarse primero para producción y selfies. Cloud Lab queda como laboratorio, fallback, control propio de workflows/provenance y opción de independencia; no se asume que sea el motor económico principal. RunPod y Vast son candidatos intercambiables para una futura implementación pay-as-you-go, sólo si una medición demuestra que aportan valor frente a las suscripciones.
+La primera versión del producto sigue siendo `library-first`: assets preproducidos, curados y trazables. Flow y Mage son fuentes canónicas de producción visual y rutas primarias para aprovechar el material ya creado. Cloud Lab queda como laboratorio, fallback, control propio de workflows/provenance y opción de independencia; no se asume que sea el motor económico principal. RunPod y Vast son candidatos intercambiables para una futura implementación pay-as-you-go, sólo si una medición demuestra que aportan valor frente a los ecosistemas canónicos.
 
 ## Media y tiers
 
@@ -55,9 +55,9 @@ Una foto adjunta por un usuario, una referencia oficial de una Queen, un derivad
 
 ## Trabajo pendiente
 
-**VERIFICADO:** la propuesta visualiza un workflow de referencia-preservación con ComfyUI y GPU bajo demanda; el VPS actual no tiene GPU y el producto ya separa objetivo multimodal, storage y autorización.
+**VERIFICADO:** la propuesta visualiza un workflow de referencia-preservación con ComfyUI y GPU bajo demanda; el VPS actual no tiene GPU, el producto ya separa objetivo multimodal, storage y autorización, y Flow/Mage son fuentes canónicas del owner con material existente.
 
-**VERIFICADO POR EL OWNER:** Flow y Mage están cubiertos por suscripciones con generación amplia. **INFERENCIA:** Cloud Lab es más valioso inicialmente como laboratorio/fallback/control propio que como motor económico principal de cada selfie; no debe usarse el PDF viejo para proyectar costos actuales.
+**VERIFICADO POR EL OWNER:** Flow y Mage son ecosistemas canónicos, cubiertos por suscripciones con generación amplia y con material ya producido en masa. **INFERENCIA:** Cloud Lab es más valioso inicialmente como laboratorio/fallback/control propio que como motor económico principal de cada selfie; no debe usarse el PDF viejo para proyectar costos actuales.
 
 **PENDIENTE:** medir límites, calidad, latencia, retención y términos de Flow/Mage; definir cuándo conviene el fallback Cloud Lab; sólo entonces comparar RunPod o Vast, presupuesto, storage privado, consentimiento, política de imágenes, colas/cancelación, workflow reproducible y calidad de identidad.
 

@@ -306,7 +306,7 @@ Secuencia inicial:
 
 Para I2V, la prioridad es identidad facial estable por encima de animación compleja. Los workflows históricos son pistas de investigación y no se consideran ejecutables hasta validar nodos, modelos, versiones y conexiones.
 
-La propuesta de Cloud Lab queda documentada como dirección futura y laboratorio/fallback: Flow y Mage, cubiertos por suscripciones del owner con generación amplia, son las rutas externas que primero deben medirse para selfies y derivados. Una GPU pay-as-you-go puede aportar control propio, independencia o recuperación ante límites, pero no se presume que sea el motor económico principal. El VPS continúa siendo el plano de control CPU y la experiencia inicial es `library-first`. Adjuntar fotos, compartirlas con una Queen y recibir outputs requiere autenticación, entitlements, consentimiento, storage privado, moderación, límites y URLs firmadas implementados y verificados. No es una capacidad publicada por la existencia de un workflow.
+La propuesta de Cloud Lab queda documentada como dirección futura y laboratorio/fallback. Flow y Mage son ecosistemas canónicos de producción visual del owner, con material existente; sus assets organizados son la fuente primaria para la experiencia `library-first`. Una GPU pay-as-you-go puede aportar control propio, independencia o recuperación ante límites, pero no se presume como motor económico principal. El VPS continúa siendo el plano de control CPU. Adjuntar fotos, compartirlas con una Queen y recibir outputs requiere autenticación, entitlements, consentimiento, storage privado, moderación, límites y URLs firmadas implementados y verificados. No es una capacidad publicada por la existencia de un workflow.
 
 ## 10. Seguridad y operación
 

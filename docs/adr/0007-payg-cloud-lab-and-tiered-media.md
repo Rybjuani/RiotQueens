@@ -6,11 +6,11 @@
 
 ## Contexto
 
-La propuesta externa de Cloud Lab describe producción visual con ComfyUI en una GPU cloud efímera, con referencias de identidad, pose y upscale. También contempla que usuarios con beneficios avanzados adjunten fotos y reciban media generada. El owner informa que Flow y Mage ya están cubiertos por suscripciones con generación amplia, por lo que el costo marginal de una selfie no debe inferirse del PDF viejo. El VPS actual no tiene GPU y no debe convertirse en un host de inferencia pesada por anticipación.
+La propuesta externa de Cloud Lab describe producción visual con ComfyUI en una GPU cloud efímera, con referencias de identidad, pose y upscale. También contempla que usuarios con beneficios avanzados adjunten fotos y reciban media generada. El owner declara Flow y Mage ecosistemas canónicos de producción visual, cubiertos por suscripciones y con material masivo existente; el costo marginal de una selfie no debe inferirse del PDF viejo. El VPS actual no tiene GPU y no debe convertirse en un host de inferencia pesada por anticipación.
 
 ## Decisión
 
-RiotQueens mantendrá el VPS como plano de control CPU. Evaluará primero Flow y Mage como rutas de generación cubiertas por suscripción. Cloud Lab (RunPod/Vast u otro equivalente) será un adaptador opcional de laboratorio, fallback, control propio e independencia operativa, y sólo se priorizará como motor si las mediciones lo justifican. La producción inicial será `library-first`. La generación bajo demanda, las cargas de fotos y la entrega de derivados sólo podrán habilitarse en tiers como T2/T3 después de implementar autenticación, entitlements, consentimiento, storage privado, política de contenido, ledger de costos, límites y URLs firmadas.
+RiotQueens mantendrá el VPS como plano de control CPU. Flow y Mage serán las fuentes canónicas primarias para organizar y aprovechar el material visual existente. Cloud Lab (RunPod/Vast u otro equivalente) será un adaptador opcional de laboratorio, fallback, control propio e independencia operativa, y sólo se priorizará como motor si las mediciones lo justifican. La producción inicial será `library-first`. La generación bajo demanda, las cargas de fotos y la entrega de derivados sólo podrán habilitarse en tiers como T2/T3 después de implementar autenticación, entitlements, consentimiento, storage privado, política de contenido, ledger de costos, límites y URLs firmadas.
 
 Cloud Lab produce contenido; RiotQueens lo selecciona, contextualiza y entrega. La generación no crea canon automáticamente y el proveedor nunca define identidad, permisos ni continuidad de una Queen.
 

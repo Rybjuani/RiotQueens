@@ -11,6 +11,8 @@
 | `Escritorio/MANIFIESTO_BARDI.pdf` | CANON AUTORAL / fuente madre visual | derivar perfil estructurado; no usar como prompt literal | `4e947053f03c6d85bc01efaa03e00d490b36fe124502de5cd6461ed104df76e1` |
 | `Escritorio/glosariomodismos.md` | CANON AUTORAL / corpus de evaluación | benchmark y regresión; no copiar respuestas literales | `22d7e22a9c8779967e0b3ed4b8de7d9556131581c0d0935f53816f5123dd4b4f` |
 | `Descargas/MANIFIESTO RIOTQUEEN DEL OESTE_ RITMO, SUSTANCIA Y AGUANTE.md` | CANON AUTORAL / manifiesto del owner | lore, identidad y vocabulario; claims públicos requieren revalidación | `564c7a8fb6d582c4d0a866cf03c7af12fdfbe79da735b4638480282d8993720f` |
+| `Flow` | CANON VISUAL DEL OWNER / ecosistema externo | fuente primaria de material visual ya producido; cada asset requiere procedencia, Queen, versión y estado antes de importarse | fuera del repo; registrar hash al incorporar derivados |
+| `Mage.space` | CANON VISUAL DEL OWNER / ecosistema externo | fuente primaria de material visual ya producido; cada asset requiere procedencia, Queen, versión y estado antes de importarse | fuera del repo; registrar hash al incorporar derivados |
 
 ## Propuesta externa de Cloud Lab
 
