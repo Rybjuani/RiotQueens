@@ -18,13 +18,13 @@ Los archivos externos quedan fuera del repo porque pueden contener material priv
 | `📕-DESCARGAR-PDF-Riot-Queens-Cloud-Lab.pdf` | `bb3f8f57a3913327894faa4c373fd839e9932272a22128103037e07e1d69a944` | propuesta de laboratorio |
 | `📕-DESCARGAR-PDF-V2-Guía-Visual-Completa.pdf` | `25af98ee74e1d40ca9c910f40747b298b692248fcd590aeba9ac13f9984b92cc` | propuesta de workflow y costos |
 
-Los tiempos, precios y nombres de instancias de esas capturas son `CLAIM HISTÓRICO / VARIABLE`. Deben verificarse con el proveedor antes de presupuestar o publicarse.
+Los tiempos, precios y nombres de instancias de esas capturas son `CLAIM HISTÓRICO / VARIABLE`. Además, el owner informa que Flow y Mage ya están cubiertos por suscripciones con generación amplia. Por eso el costo marginal de una selfie no debe modelarse automáticamente como GPU × segundos × imagen: primero se debe medir el uso real y los límites de esas suscripciones.
 
 ## Decisión de arquitectura
 
 El VPS actual es CPU y continúa siendo la casa del producto: API, autorización, colas, adaptadores, storage y entrega. El Cloud Lab es un proveedor opcional de producción o procesamiento visual, separado del runtime conversacional. No se instala una GPU local ni Ollama en el VPS para resolver este caso.
 
-La primera versión del producto sigue siendo `library-first`: assets preproducidos, curados y trazables. La generación bajo demanda sólo se habilita después de medir demanda, costo, latencia, calidad, retención y abuso. RunPod y Vast son candidatos intercambiables para una futura implementación pay-as-you-go; elegir uno no forma parte de esta documentación.
+La primera versión del producto sigue siendo `library-first`: assets preproducidos, curados y trazables. Flow y Mage son rutas externas de generación amplia que deben evaluarse primero para producción y selfies. Cloud Lab queda como laboratorio, fallback, control propio de workflows/provenance y opción de independencia; no se asume que sea el motor económico principal. RunPod y Vast son candidatos intercambiables para una futura implementación pay-as-you-go, sólo si una medición demuestra que aportan valor frente a las suscripciones.
 
 ## Media y tiers
 
@@ -57,8 +57,8 @@ Una foto adjunta por un usuario, una referencia oficial de una Queen, un derivad
 
 **VERIFICADO:** la propuesta visualiza un workflow de referencia-preservación con ComfyUI y GPU bajo demanda; el VPS actual no tiene GPU y el producto ya separa objetivo multimodal, storage y autorización.
 
-**INFERENCIA:** el patrón es adecuado como laboratorio de producción y como backend futuro de beneficios T2/T3, no como generación permanente en cada conversación.
+**VERIFICADO POR EL OWNER:** Flow y Mage están cubiertos por suscripciones con generación amplia. **INFERENCIA:** Cloud Lab es más valioso inicialmente como laboratorio/fallback/control propio que como motor económico principal de cada selfie; no debe usarse el PDF viejo para proyectar costos actuales.
 
-**PENDIENTE:** seleccionar RunPod o Vast, verificar precios/terms actuales, definir límites de gasto, proveedor de storage privado, retención y consentimiento, política de imágenes, estrategia de colas/cancelación, workflow reproducible y prueba de calidad de identidad.
+**PENDIENTE:** medir límites, calidad, latencia, retención y términos de Flow/Mage; definir cuándo conviene el fallback Cloud Lab; sólo entonces comparar RunPod o Vast, presupuesto, storage privado, consentimiento, política de imágenes, colas/cancelación, workflow reproducible y calidad de identidad.
 
 La autoridad funcional sigue siendo `SPECT.md`; la decisión concreta y sus consecuencias están en [`docs/adr/0007-payg-cloud-lab-and-tiered-media.md`](adr/0007-payg-cloud-lab-and-tiered-media.md). Esta hoja explica la implementación prevista, no eleva una propuesta a capacidad pública.

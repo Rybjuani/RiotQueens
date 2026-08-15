@@ -284,7 +284,7 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 - Redis se difiere hasta existir una necesidad medida de cache, colas o estado temporal.
 - Cloudflare R2 es el objetivo para object storage privado.
 - Los gastos GPU sólo se activan ante un hueco real de biblioteca o una capacidad de servicio explícitamente aprobada y financiada; no se asignan anticipadamente a un tier.
-- Cloud Lab puede usar una GPU cloud pay-as-you-go como proveedor efímero de producción, separado del VPS CPU y del runtime conversacional; la dirección y sus guardrails están en [`adr/0007-payg-cloud-lab-and-tiered-media.md`](adr/0007-payg-cloud-lab-and-tiered-media.md).
+- Flow y Mage, según informa el owner, están cubiertos por suscripciones con generación amplia y deben evaluarse primero para selfies y derivados. Cloud Lab puede usar una GPU cloud pay-as-you-go como laboratorio, fallback o control propio, separado del VPS CPU y del runtime conversacional; no se presume como motor económico principal. La dirección y sus guardrails están en [`adr/0007-payg-cloud-lab-and-tiered-media.md`](adr/0007-payg-cloud-lab-and-tiered-media.md).
 - Adjuntar fotos, compartirlas con una Queen y recibir derivados son capacidades futuras de media, potencialmente T2/T3, no beneficios activos hasta contar con autenticación, entitlements, consentimiento, storage privado, moderación, ledger y URLs firmadas.
 
 ### VERIFICADO
