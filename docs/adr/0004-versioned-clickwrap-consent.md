@@ -56,3 +56,9 @@ Contrato conceptual de entrada:
 - Los claims públicos sobre privacidad, tracking, cookies, almacenamiento, venta de datos, pagos o cancelación requieren comportamiento real de la implementación, configuración real de producción y política o texto legal vigente cuando corresponda.
 - La privacidad no cambia por tier salvo futura decisión explícita del owner.
 - Una autodeclaración es el baseline del MVP, no una garantía universal de cumplimiento para todo país o categoría futura.
+
+La política reutilizable de autorización para media está implementada como
+`apps/api/app/domain/authorization.py`. Recibe una identidad ya verificada,
+las versiones de clickwrap aceptadas y el tier; no implementa login, pagos ni
+elige jurisdicción. La política falla cerrado ante identidad ausente, scope
+distinto, aceptación vencida o tier insuficiente.
