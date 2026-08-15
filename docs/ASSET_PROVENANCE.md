@@ -10,7 +10,7 @@ El producto prioriza **compañeras conversacionales** (humor, creatividad, chat)
 
 Cada Queen mantiene **memoria y conversación aisladas** en backend por `character_id`. Las grillas del roster son previews provisionales: el owner reordena al verlas en pantalla.
 
-Pool fuente: `Escritorio/RiotQueens/RiotQueens Seleccionadas/` (no se sirve desde el VPS).
+Pool fuente: `Escritorio/RiotQueens/RiotQueens Seleccionadas/` (no se sirve desde el VPS). Flow y Mage son ecosistemas canónicos externos del owner y contienen material ya producido; los assets de esos ecosistemas sólo se vuelven parte del repo mediante una copia/derivado con procedencia y hash.
 
 ## Brand
 
@@ -24,7 +24,7 @@ Rutas bajo `apps/web/public/queens/<id>/0N.jpg`. Hashes exactos en `config/publi
 
 | Queen | Slots | Runtime chat | Notas |
 |---|---|---|---|
-| `bardera` | 5 | **live** | 01–03 presencia/chat preferidas; 04–05 relleno provisional del pool de 7 (reordenar/reemplazar con Flow) |
+| `bardera` | 5 | **live** | 01–03 presencia/chat preferidas; 04–05 relleno provisional del pool de 7; reemplazo sólo mediante selección registrada desde fuentes canónicas |
 | `toxica` | 5 | curación | presencia en cuarto |
 | `gede` | 5 | curación | cuarto + retrato vertical |
 | `rocha` | 2 | curación | pool chico; faltan 2–3 tomas |

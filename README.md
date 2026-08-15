@@ -72,6 +72,22 @@ La esencia compartida de RiotQueens se combina con una identidad, voz, glosario 
 
 `Qwen_html.html`, `MANIFIESTO_BARDI.pdf`, `barderainvernadero.png` y los manifiestos del owner fueron auditados como fuentes de diseño, misión, visión y curaduría. No se copian automáticamente al runtime: su clasificación y hashes están en [`docs/canon/QUEEN_SOURCE_REGISTER.md`](docs/canon/QUEEN_SOURCE_REGISTER.md).
 
+## Mapa único de trabajo
+
+Para evitar otra bola de nieve, cada tipo de decisión tiene una sola ubicación:
+
+| Necesidad | Fuente vigente |
+|---|---|
+| producto, arquitectura, canon funcional y capacidades publicables | [`SPECT.md`](SPECT.md) |
+| continuidad operativa y próximos cortes | [`RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md`](RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md) |
+| decisiones, contradicciones y pendientes | [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md) y ADRs |
+| procedencia de fuentes y assets | [`docs/canon/QUEEN_SOURCE_REGISTER.md`](docs/canon/QUEEN_SOURCE_REGISTER.md) y [`docs/ASSET_PROVENANCE.md`](docs/ASSET_PROVENANCE.md) |
+| perfiles, glosarios y casting por Queen | [`docs/QUEEN_CURATION_PIPELINE.md`](docs/QUEEN_CURATION_PIPELINE.md) y `docs/canon/queens/` |
+| modelos, benchmarks y credenciales de laboratorio | [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md) y `docs/evals/` |
+| despliegue y estado del VPS | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
+
+Una transcripción externa, export de otro agente o documento histórico sólo se incorpora después de clasificarlo en una de esas fuentes; no crea una autoridad paralela. El catálogo de Flow/Mage que Grok habría producido todavía no está presente como artefacto estructurado en este repo: queda registrado para recuperación exacta, no para rehacerlo desde cero.
+
 ## Proveedores y laboratorio
 
 OpenRouter/Llama sigue siendo el proveedor primario configurado del entorno de prueba y Hugging Face es un fallback opcional ya validado en smoke. Google AI Studio (`GEMINI_API_KEY`) queda incorporado al roadmap como proveedor multimodal y de laboratorio; la API respondió en smoke, pero la batería de voz y la ruta multimodal todavía deben aprobarse. La propuesta Gemma + Ollama + llama.cpp se documenta en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md), sin prometer capacidad pública ni commitear credenciales.
