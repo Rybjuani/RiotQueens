@@ -58,3 +58,13 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 8. Trabajar en rama y usar commits convencionales.
 
 No convertir al owner en QA manual. Para acciones reversibles y dentro del alcance, avanzar con autonomía y dejar evidencia auditable.
+
+## Control de macrofase
+
+Antes de devolver el control al owner:
+
+- verificar la macrofase activa y sus criterios de salida en el handoff vigente;
+- un commit o test aprobado no es por sí solo un límite de macrofase;
+- si queda trabajo seguro y ejecutable dentro de la macrofase activa, continuarlo;
+- no elevar un subproblema descubierto a prioridad de proyecto sin contrastarlo con el roadmap canónico;
+- escalar sólo bloqueos reales o decisiones de producto, canon, gasto, legalidad o efectos irreversibles.

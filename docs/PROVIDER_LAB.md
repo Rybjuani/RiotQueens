@@ -8,7 +8,7 @@ La propuesta de GPU cloud para producción visual está separada de este laborat
 
 ## Google AI Studio
 
-`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. La prueba controlada del 2026-08-15 respondió HTTP 200 con `gemini-2.5-flash`; todavía falta ejecutar la batería de voz y una prueba multimodal reproducible. La credencial detectada en `.env_final(1)` no se copia ni se versiona: debe rotarse por haber estado guardada en texto plano. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
+`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. La prueba controlada del 2026-08-15 respondió HTTP 200 con `gemini-2.5-flash`; todavía falta ejecutar la batería de voz y una prueba multimodal reproducible. La credencial detectada en `.env_final(1)` no se copia ni se versiona. No hay evidencia de que haya sido publicada o commiteada; la rotación sólo corresponde si aparece evidencia de exposición efectiva, un log compartido o una instrucción del owner. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
 
 ## Gemma local
 
@@ -30,4 +30,4 @@ La matriz no decide un ganador por reputación. `PASS` requiere el benchmark de 
 
 ## Contrato de secretos
 
-El único `.env` operativo local vive en la raíz del repo canónico y está ignorado. `.env.example` es el contrato versionado. En VPS se usa un archivo de secretos fuera del repo junto con `.env` de defaults; nunca se sirve desde web ni se incluye en imágenes públicas. Las claves de OpenRouter, Hugging Face, Google AI Studio y cualquier futuro proveedor se rotan si aparecen en texto plano o logs.
+El único `.env` operativo local vive en la raíz del repo canónico y está ignorado. `.env.example` es el contrato versionado. En VPS se usa un archivo de secretos fuera del repo junto con `.env` de defaults; nunca se sirve desde web ni se incluye en imágenes públicas. Las claves de OpenRouter, Hugging Face, Google AI Studio y cualquier futuro proveedor se rotan si aparecen en Git, una superficie pública o logs compartidos; el almacenamiento local protegido no equivale por sí solo a exposición.
