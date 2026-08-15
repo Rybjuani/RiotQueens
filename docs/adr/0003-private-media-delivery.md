@@ -20,6 +20,7 @@ Todo archivo enviado al navegador puede inspeccionarse y copiarse. Detectar la a
 - Las referencias visuales oficiales se seleccionan server-side sólo cuando la interacción las necesita; no se adjuntan indiscriminadamente.
 - Un adjunto del usuario, una referencia visual interna enviada a un modelo y una media entregada al navegador son contratos diferentes.
 - Rate limits, detección de scraping, revocación, ban y watermark individual son controles secundarios.
+- La intención interna de media se modela sin URL, object key, asset selection ni permiso de entrega; el contrato tipado vive en `apps/api/app/domain/contracts.py` y no constituye un endpoint activo.
 
 ## Consecuencias
 

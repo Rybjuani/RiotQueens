@@ -34,6 +34,32 @@ class Route(StrEnum):
     MEMORY = "memory"
 
 
+class MediaType(StrEnum):
+    """Media kinds reserved for a future authorized delivery path."""
+
+    SELFIE = "selfie"
+    IMAGE = "image"
+
+
+class MediaIntent(BaseModel):
+    """Server-owned request to resolve an authorized media asset.
+
+    This is an internal domain contract, not a public endpoint. It carries
+    semantic intent only; entitlement, consent, asset selection, object keys,
+    URLs and delivery permissions remain backend-owned and are deliberately
+    absent from the model.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_id: ScopeIdentifier
+    character_id: QueenIdentifier
+    conversation_id: ScopeIdentifier
+    media_type: MediaType
+    mood: str | None = Field(default=None, max_length=64)
+    context: str | None = Field(default=None, max_length=500)
+
+
 class MessageInput(BaseModel):
     role: str = Field(pattern="^(system|user|assistant|tool)$")
     content: str = Field(min_length=1, max_length=20_000)
