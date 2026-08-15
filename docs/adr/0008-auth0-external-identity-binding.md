@@ -26,7 +26,8 @@ La autenticación crea solamente una identidad T0 sin aceptación ni entitlement
   runtime protegido.
 - El SDK FastAPI publicado actualmente por Auth0 es beta; se usa PyJWT estable
   con `PyJWKClient`, no criptografía manual ni dependencia beta.
-- El SDK oficial Next compatible con Next 14 proporciona login/sesión y el
-  backend recibe sólo el access token para su Custom API/Audience.
+- La web usa `@auth0/nextjs-auth0` v4.22.0 con Next 14.2.35: `/auth/*` se monta
+  mediante middleware y Caddy conserva `/api/*` exclusivamente para FastAPI.
+  El backend recibe sólo access tokens para su Custom API/Audience.
 - Producción sigue bloqueada hasta la confirmación escrita de Auth0 sobre +18,
   subprocesadores/transferencias del tenant CA y transferencias desde Argentina.

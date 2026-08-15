@@ -307,6 +307,12 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 - En el flujo documentado de Teams, crear un tenant implica aceptar los Free Trial terms del Master Subscription Agreement; la documentación revisada no permite afirmar con certeza el acto contractual exacto para la primera creación de cuenta/tenant fuera de ese flujo ([Tenant Management](https://auth0.com/docs/get-started/auth0-teams/tenant-management)).
 - La documentación revisada no aporta autorización contractual específica para una plataforma `+18`, ni prueba que perfiles, logs, backups, soporte y todos los subprocesadores de un tenant `CA` permanezcan exclusivamente en Canadá. No inferir aprobación por ausencia de una prohibición visible.
 - El owner autorizó aceptar los términos vigentes necesarios para evaluación e implementación no productiva. C3 conserva Auth0 sólo como IAM: `sub` se vincula transaccionalmente a `users.id` UUID propio mediante `external_identities`; no se usa email, browser ID ni `sub` como PK de dominio. La decisión técnica está en ADR 0008.
+- **VERIFICADO:** existe el tenant Development `riotqueens-ai-ca` en Canadá,
+  dominio `riotqueens-ai-ca.ca.auth0.com`, con la aplicación Regular Web
+  Application `riotqueens-ai` configurada para Next.js. No contiene secretos
+  del repo. La integración web usa SDK v4 y `/auth/*`; Caddy preserva `/api/*`
+  para FastAPI. Queda pendiente crear la Custom API/Audience y cargar secretos
+  únicamente en `.env` local.
 - **Gate de producción pendiente:** respuesta escrita de Auth0 sobre compatibilidad `+18`, DPA aplicable, lista/versionado de subprocesadores, mecanismo para transferencias desde Argentina y alcance geográfico completo del tenant `CA`.
 
 ## 8. Reglas para no perder contexto otra vez

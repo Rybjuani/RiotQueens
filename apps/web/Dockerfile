@@ -10,7 +10,9 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
 
 ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_AUTH_ENABLED=false
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_AUTH_ENABLED=${NEXT_PUBLIC_AUTH_ENABLED}
 ENV NODE_ENV=production
 
 RUN pnpm --dir apps/web build

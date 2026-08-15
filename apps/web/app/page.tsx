@@ -54,7 +54,7 @@ export default function Home() {
 
   const startChat = () => {
     if (process.env.NEXT_PUBLIC_AUTH_ENABLED === "true") {
-      window.location.assign("/api/auth/login?returnTo=/#chat");
+      window.location.assign("/auth/login?returnTo=/#chat");
       return;
     }
     setModal(null);

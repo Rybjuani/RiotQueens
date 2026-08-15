@@ -26,7 +26,7 @@ export interface ChatResponse {
 }
 
 async function authenticatedHeaders(): Promise<HeadersInit> {
-  const tokenResponse = await fetch("/api/access-token", { cache: "no-store" });
+  const tokenResponse = await fetch("/api/token", { cache: "no-store" });
   if (!tokenResponse.ok) throw new Error("Authentication required");
   const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
   return { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` };

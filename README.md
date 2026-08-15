@@ -8,7 +8,7 @@ RiotQueens.ai es una experiencia `+18` de personajes virtuales ficticios, origin
 
 - [`SPECT.md`](SPECT.md): producto, arquitectura, estado verificado y próximos cortes.
 - [`AGENTS.md`](AGENTS.md): reglas operativas para cualquier agente o contribuidor.
-- [`RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md`](RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md): estado operativo de la recuperación, evidencia auditada y continuidad para el siguiente agente.
+- [`RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md`](RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md): checkpoint operativo vigente y continuidad para el siguiente agente.
 - [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
 - [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md): patrón sanitizado de ruptura de scope, contexto y personaje observado en productos externos.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
@@ -37,7 +37,8 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - Queen registrada, routing y contexto validados del lado servidor; `/v1/chat` no acepta una ruta elegida por el cliente ni expone diagnósticos internos del provider;
 - conversación multi-turn y memorias explícitas acotadas en proceso;
 - historial visible recuperado al reabrir el chat para el mismo scope efímero mientras vive el proceso;
-- identificadores aleatorios de prototipo por pestaña, explícitos y acotados, sin tratarlos como identidad autenticada;
+- C3 de identidad no productivo: Auth0 CA sólo como IAM, binding transaccional
+  `sub` → UUID RiotQueens propio, JWT fail-closed y browser ID sin autoridad;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
@@ -46,10 +47,10 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 
 ### Todavía no implementado
 
-- autenticación real;
 - clickwrap +18 versionado y validado por backend;
+- activar Auth0 para usuarios de prueba: Custom API/Audience, migración de
+  identidad PostgreSQL y secretos locales;
 - persistencia durable de conversaciones y memorias;
-- integración de PostgreSQL y Redis con el dominio;
 - storage privado, CDN y URLs firmadas;
 - entitlements, créditos y pagos;
 - entrega autorizada de media premium;
@@ -120,9 +121,9 @@ El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback 
 
 ## Próximo objetivo
 
-1. elegir el mecanismo de autenticación y cerrar jurisdicciones, versiones legales y retención;
-2. implementar auth y clickwrap antes de considerar protegido el acceso al chat;
-3. conectar persistencia durable sin cambiar los scopes del dominio;
+1. completar Auth0 CA no productivo y probar login/token/API sin deploy;
+2. cerrar jurisdicciones, versiones legales y retención antes de producción;
+3. implementar clickwrap y persistencia durable sin cambiar scopes;
 4. configurar DNS/TLS y repetir smoke tests sobre una release identificada;
 5. avanzar con media privada y entitlements sólo después de definir autorización y oferta comercial.
 
