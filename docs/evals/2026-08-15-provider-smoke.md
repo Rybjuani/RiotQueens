@@ -7,14 +7,14 @@
 
 | Proveedor | Modelo | Resultado | Evidencia resumida |
 |---|---|---|---|
-| Google AI Studio | `gemini-2.5-flash` | `INFRA_FAILURE` | 5 turnos procesados, 0 hard-fails; timeout en T6 |
+| Google AI Studio | `gemini-2.5-flash` | `INFRA_FAILURE` | dos corridas: 5 turnos y timeout en T6; repetición de glosario completó 6 turnos sin hard-fail y recibió error HTTP en T7 |
 | Google AI Studio | `gemma-4-31b-it` | `INFRA_FAILURE` | 10 turnos procesados, 4 hard-fails; HTTP 429 en T11 y etiquetas `<thought>` visibles |
 | Hugging Face Router | `openai/gpt-oss-120b:ovhcloud` | `INFRA_FAILURE` | 9 turnos procesados; 5 hard-fails; HTTP 402 en T10 |
 | OpenRouter | `meta-llama/llama-3.3-70b-instruct` | `FAIL` | 12 turnos procesados; 4 hard-fails; sin fallo de infraestructura |
 
 Notas:
 
-- Gemini requirió omitir `frequency_penalty`, porque su capa OpenAI-compatible respondió HTTP 400 con ese parámetro.
+- Gemini requirió omitir `frequency_penalty`, porque su capa OpenAI-compatible respondió HTTP 400 con ese parámetro. La repetición con `gemini-2.5-flash`, glosario, few-shot, `temperature=0.9` y `max_tokens=256` llegó a T6 sin hard-fail y terminó en `HTTPStatusError` en T7; sigue siendo `INFRA_FAILURE` y no un `PASS`.
 - Gemma remoto respondió desde el VPS, pero emitió etiquetas `<thought>` en el contenido y no puede entrar al runtime sin un filtro/adapter que garantice que no se exponga razonamiento interno.
 - La respuesta inicial de Gemini mostró cobertura léxica de Bardera, pero la latencia impide declararlo `PASS`.
 - HF sí evidenció falso positivo corporativo en los turnos con archivos y modismos; además la cuota/pago interrumpió la corrida.

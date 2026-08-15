@@ -8,7 +8,7 @@ La propuesta de GPU cloud para producción visual está separada de este laborat
 
 ## Google AI Studio
 
-`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. La prueba controlada del 2026-08-15 respondió HTTP 200 con `gemini-2.5-flash`; todavía falta ejecutar la batería de voz y una prueba multimodal reproducible. La credencial detectada en `.env_final(1)` no se copia ni se versiona. No hay evidencia de que haya sido publicada o commiteada; la rotación sólo corresponde si aparece evidencia de exposición efectiva, un log compartido o una instrucción del owner. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
+`GEMINI_API_KEY` queda reservado para Google AI Studio como proveedor de laboratorio y posible ruta multimodal. Las corridas controladas del 2026-08-15 con `gemini-2.5-flash` respondieron seis turnos del glosario sin hard-fail en la repetición más reciente, pero terminaron por infraestructura antes de completar la batería (timeout previo en T6; `HTTPStatusError` posterior en T7). Todavía falta una batería de voz completa y una prueba multimodal reproducible. La credencial detectada en `.env_final(1)` no se copia ni se versiona. No hay evidencia de que haya sido publicada o commiteada; la rotación sólo corresponde si aparece evidencia de exposición efectiva, un log compartido o una instrucción del owner. También hay que comprobar cuota, modelo habilitado, región y términos de la cuenta. La API de Google Developers que el owner todavía debe obtener es una dependencia distinta y queda `PENDIENTE`.
 
 ## Gemma local
 
