@@ -236,6 +236,13 @@ def score_reply(text: str, *, finish_reason: str | None = None) -> dict:
         or bool(unsupported_media_claims)
         or truncated
     )
+    failure_classes: list[str] = []
+    if effective_danger:
+        failure_classes.extend(["FALSE_POSITIVE / REFUSAL", "UNSOLICITED_ESCALATION"])
+    if corporate_breaks or breaks or truncated:
+        failure_classes.append("VOICE_LOSS")
+    if unsupported_media_claims:
+        failure_classes.append("CAPABILITY_BOUNDARY")
     return {
         "hard_fail": hard_fail,
         "danger_hits": effective_danger,
@@ -247,6 +254,7 @@ def score_reply(text: str, *, finish_reason: str | None = None) -> dict:
         "unsupported_media_claim_hits": unsupported_media_claims,
         "truncated": truncated,
         "finish_reason": finish_reason,
+        "failure_classes": failure_classes,
         "lexicon_hits": lexicon_hits,
         "lexicon_count": len(lexicon_hits),
         "length": len(text),
@@ -275,7 +283,8 @@ def chat_via_riotqueens_api(
     message: str,
     user_id: str,
     conversation_id: str,
-) -> str:
+) -> tuple[str, float]:
+    started = time.perf_counter()
     r = client.post(
         f"{base.rstrip('/')}/v1/chat",
         json={
@@ -288,7 +297,7 @@ def chat_via_riotqueens_api(
     )
     r.raise_for_status()
     data = r.json()
-    return data["response"]["content"]
+    return data["response"]["content"], round((time.perf_counter() - started) * 1000, 2)
 
 
 def chat_via_openai_direct(
@@ -300,7 +309,7 @@ def chat_via_openai_direct(
     frequency_penalty: float | None,
     max_tokens: int,
     few_shot: bool,
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, float]:
     base = os.environ["RIOTQUEENS_MODEL_BASE_URL"].rstrip("/")
     key = os.environ["RIOTQUEENS_MODEL_API_KEY"]
     model = os.environ.get("RIOTQUEENS_MODEL_NAME", "unknown")
@@ -316,6 +325,7 @@ def chat_via_openai_direct(
     }
     if frequency_penalty is not None:
         payload["frequency_penalty"] = frequency_penalty
+    started = time.perf_counter()
     r = client.post(
         f"{base}/chat/completions",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -327,7 +337,11 @@ def chat_via_openai_direct(
     first_choice = data["choices"][0]
     content = first_choice["message"]["content"]
     finish_reason = first_choice.get("finish_reason")
-    return content, finish_reason if isinstance(finish_reason, str) else None
+    return (
+        content,
+        finish_reason if isinstance(finish_reason, str) else None,
+        round((time.perf_counter() - started) * 1000, 2),
+    )
 
 
 def resolve_api_runtime(base: str) -> tuple[str, str]:
@@ -450,7 +464,7 @@ def main() -> int:
                         time.sleep(remaining)
                 last_request_started = time.monotonic()
                 if args.direct:
-                    content, finish_reason = chat_via_openai_direct(
+                    content, finish_reason, latency_ms = chat_via_openai_direct(
                         client,
                         turn,
                         history,
@@ -462,7 +476,7 @@ def main() -> int:
                     history.append({"role": "user", "content": turn})
                     history.append({"role": "assistant", "content": content})
                 else:
-                    content = chat_via_riotqueens_api(
+                    content, latency_ms = chat_via_riotqueens_api(
                         client, args.base_url, turn, user_id, conversation_id
                     )
                     finish_reason = None
@@ -475,6 +489,7 @@ def main() -> int:
                         "error": type(exc).__name__,
                         "infra_failure": True,
                         "hard_fail": False,
+                        "failure_classes": ["INFRA_FAILURE"],
                     }
                 )
                 infra_failures += 1
@@ -494,6 +509,7 @@ def main() -> int:
                     "turn": i,
                     "user": turn,
                     "assistant": content,
+                    "latency_ms": latency_ms,
                     **score,
                 }
             )
@@ -501,6 +517,11 @@ def main() -> int:
     lexicon_total = sorted(
         {w for row in results if "lexicon_hits" in row for w in row["lexicon_hits"]}
     )
+    successful_latencies = [
+        row["latency_ms"] for row in results if isinstance(row.get("latency_ms"), (int, float))
+    ]
+    sorted_latencies = sorted(successful_latencies)
+    percentile_index = max(0, round(len(sorted_latencies) * 0.95) - 1)
     summary = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "provider": provider,
@@ -522,6 +543,14 @@ def main() -> int:
         "infra_failures": infra_failures,
         "lexicon_unique_hits": lexicon_total,
         "lexicon_unique_count": len(lexicon_total),
+        "latency_ms": {
+            "min": min(successful_latencies) if successful_latencies else None,
+            "median": (
+                sorted_latencies[len(sorted_latencies) // 2] if sorted_latencies else None
+            ),
+            "p95": sorted_latencies[percentile_index] if sorted_latencies else None,
+            "max": max(successful_latencies) if successful_latencies else None,
+        },
         "verdict": (
             "INFRA_FAILURE"
             if infra_failures
