@@ -33,7 +33,20 @@
 ## Activación controlada
 
 1. Construir y validar Compose desde una release identificada por commit.
-2. Levantar `api`, `web` y `caddy` con el archivo runtime externo.
+2. Levantar `api`, `web` y `caddy` combinando configuración no sensible y secretos:
+
+   ```bash
+   docker compose \
+     --env-file .env \
+     --env-file /opt/riotqueens/shared/runtime.env \
+     up -d
+   ```
+
+   El primer archivo conserva los defaults y parámetros no sensibles del release;
+   el segundo aporta las claves server-side. No copiar secretos dentro de la
+   release ni usar el archivo runtime externo como única fuente, porque los
+   defaults de Compose volverían silenciosamente al proveedor `mock`.
+
 3. Verificar healthchecks, logs y puertos locales.
 4. Probar `/`, `/legal`, `/privacy`, `/api/health` y un turno de `/api/v1/chat` por IP.
 5. Crear el registro `A` de `riotqueens.ai` hacia `148.113.167.121` y decidir el alias `www`.

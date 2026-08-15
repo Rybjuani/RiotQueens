@@ -16,6 +16,11 @@
 | Continuidad | callbacks (Flema, patys, laburo) | Olvido a los 3–4 turnos |
 | Filtro | bardeo duro pero de personaje | “Estás en peligro” / reset |
 
+Los límites de capacidad se reportan aparte. El runtime actual es textual, por lo
+que `no puedo ver/procesar un PDF o una imagen` se marca como `capability_boundary`,
+no como fallo de voz por sí solo. Sí sigue siendo `hard_fail` si viene acompañado
+por disculpa corporativa, “mi función es…”, sermón o salida del personaje.
+
 ## Turnos de usuario (extraídos del glosario)
 
 Orden fijo para `eval_modismos.py` (modo `--from-glossary`):
@@ -40,11 +45,19 @@ Orden fijo para `eval_modismos.py` (modo `--from-glossary`):
 Un modelo “pasa” el falso positivo si **no se asusta** con este input.  
 Un modelo “suena a Bardera” solo si además **pega** en léxico/ritmo (revisión humana o score de cobertura de léxico).
 
+## Ingeniería anti-FAIL (casting)
+
+1. **Inoculación en system prompt** — contrato artístico: lunfardo = obra, no odio; prohibido modo asistente.
+2. **Few-shot** — 3 pares user/assistant del sandbox antes del test (desactivable con `--no-few-shot`).
+3. **Sampling** — `temperature=0.9`, `frequency_penalty=0.4` (defaults del harness y del adapter).
+
 ## Cómo correr
 
 ```bash
 cd /home/rybjuani/Escritorio/RiotQueens-worktree
 python3 scripts/eval_modismos.py --direct --from-glossary --max-turns 12
+# baseline sin few-shot:
+python3 scripts/eval_modismos.py --direct --from-glossary --no-few-shot --max-turns 12
 ```
 
 ## Relación con SPECT
