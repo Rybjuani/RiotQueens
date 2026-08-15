@@ -6,7 +6,7 @@
 
 La carpeta externa `/home/rybjuani/Escritorio/propuesta/` describe un laboratorio visual efímero: levantar una GPU cloud potente sólo durante un trabajo, ejecutar un workflow de ComfyUI con una imagen de referencia, identidad facial, pose, prompt y upscale, descargar derivados y apagar el pod. La intención del producto es que el owner siga siendo curador de las Queens y de sus perfiles; la generación ayuda a producir material visual consistente, no reemplaza la selección humana ni convierte una imagen en canon automáticamente.
 
-La auditoría también recuperó una captura histórica de una interfaz Companion Studio. Puede servir para estudiar estructura de edición y flujo, pero no gobierna marca, roster, voz, tier ni copy actuales.
+La auditoría también recuperó una captura histórica de una interfaz de edición. Puede servir para estudiar estructura de edición y flujo, pero no gobierna marca, roster, voz, tier ni copy actuales.
 
 Los archivos externos quedan fuera del repo porque pueden contener material privado o de trabajo. Sus hashes auditados son:
 

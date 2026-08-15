@@ -20,7 +20,7 @@ La propuesta de `/Escritorio/propuesta/` se conserva fuera del repo. Es evidenci
 
 ## Material de `/Escritorio/RiotQueens`
 
-`RiotQueens Seleccionadas/` es un pool creativo local con subcarpetas por Queen y una intención explícita: revisar 4–5 fotos de cada una en pantalla y reordenarlas con coherencia de personalidad. Se conserva como fuente externa, no como segundo repo. Los archivos con branding histórico de Companion Studio o sin procedencia clara son referencias de trabajo, no assets públicos automáticos.
+`RiotQueens Seleccionadas/` es un pool creativo local con subcarpetas por Queen y una intención explícita: revisar 4–5 fotos de cada una en pantalla y reordenarlas con coherencia de personalidad. Se conserva como fuente externa, no como segundo repo. Los archivos con branding no vigente o sin procedencia clara son referencias de trabajo, no assets públicos automáticos.
 
 Los previews actuales en `apps/web/public/` son copias provisionales ya registradas en `docs/ASSET_PROVENANCE.md` y `config/public-media.json`. No se sobrescriben masters; cada reemplazo exige hash, procedencia, estado premium y revisión del owner.
 

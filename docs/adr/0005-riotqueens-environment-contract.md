@@ -6,7 +6,7 @@
 
 ## Contexto
 
-El runtime heredado de Companion Studio todavía usaba variables `COMPANION_*` aunque la marca, el repositorio y el producto canónico ya son RiotQueens.ai. Mantener ambos nombres activos crearía precedencias ambiguas, errores de despliegue y una dependencia conceptual con el producto anterior.
+Un runtime histórico todavía usaba variables `COMPANION_*` aunque la marca, el repositorio y el producto canónico son RiotQueens.ai. Mantener ambos nombres activos crearía precedencias ambiguas, errores de despliegue y una dependencia conceptual con un producto anterior.
 
 El primer despliegue público todavía no había ocurrido al adoptar este ADR, por lo que ese era el momento de corregir el contrato sin sostener aliases indefinidos.
 

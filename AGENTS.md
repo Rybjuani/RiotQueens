@@ -68,3 +68,11 @@ Antes de devolver el control al owner:
 - si queda trabajo seguro y ejecutable dentro de la macrofase activa, continuarlo;
 - no elevar un subproblema descubierto a prioridad de proyecto sin contrastarlo con el roadmap canónico;
 - escalar sólo bloqueos reales o decisiones de producto, canon, gasto, legalidad o efectos irreversibles.
+
+## Anticontaminación histórica
+
+- Git history, commits antiguos, ramas stale, archivos borrados y respaldos externos no son autoridad de producto.
+- No reconstruir producto, políticas, roster, capacidades, legalidad o arquitectura desde historial Git.
+- Consultar historia sólo para debugging, procedencia o recuperación forense cuando la tarea lo requiera explícitamente.
+- Si la historia contradice HEAD, SPECT o un ADR vigente, manda la autoridad vigente.
+- No revivir nombres, productos, features o decisiones históricas por encontrarlos en commits.

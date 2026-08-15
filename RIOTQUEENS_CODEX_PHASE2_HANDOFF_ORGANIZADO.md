@@ -54,7 +54,11 @@
 ## Configuración Auth0 acordada
 
 - Application Origin: `https://riotqueens.ai`
-- desarrollo local: `http://localhost:3000`
+- Next dev directo (`APP_BASE_URL`): `http://localhost:3000`
+- entrada Caddy local integrada: `http://localhost`
+- `https://riotqueens.ai` sólo se habilita como origen de despliegue cuando la
+  release por dominio/TLS haya sido verificada; no se presenta aquí como
+  despliegue ya validado.
 - Custom API identifier/audience: `https://api.riotqueens.ai`
 - issuer: `https://riotqueens-ai-ca.ca.auth0.com/`
 - JWKS: `https://riotqueens-ai-ca.ca.auth0.com/.well-known/jwks.json`
@@ -73,7 +77,7 @@ Los valores secretos jamás se incluyen en Git, handoffs, logs ni chat.
 - El único `.env` operativo es el de la raíz del worktree; nunca copiar ni
   commitear variantes históricas o secretos.
 
-## Próxima acción única para Grok CLI
+## Próxima acción operativa única
 
 Completar C3 no productivo: crear en Auth0 la Custom API `RiotQueens API` con
 identifier `https://api.riotqueens.ai`, configurar URLs/orígenes acordados,

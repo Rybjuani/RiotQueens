@@ -4,7 +4,7 @@
 
 **Fecha:** 2026-08-10
 
-**Estado:** canon operativo ratificado por el owner; sustituye como autoridad a la documentación de Companion Studio
+**Estado:** canon operativo ratificado por el owner; sustituye documentación histórica no canónica
 
 ## 1. Autoridad y canon
 

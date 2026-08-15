@@ -87,7 +87,7 @@ Para evitar otra bola de nieve, cada tipo de decisión tiene una sola ubicación
 | modelos, benchmarks y credenciales de laboratorio | [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md) y `docs/evals/` |
 | despliegue y estado del VPS | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 
-Una transcripción externa, export de otro agente o documento histórico sólo se incorpora después de clasificarlo en una de esas fuentes; no crea una autoridad paralela. El catálogo de Flow/Mage que Grok habría producido todavía no está presente como artefacto estructurado en este repo: queda registrado para recuperación exacta, no para rehacerlo desde cero.
+Una transcripción externa, export de otro agente o documento histórico sólo se incorpora después de clasificarlo en una de esas fuentes; no crea una autoridad paralela. Los catálogos externos de Flow/Mage no son autoridad hasta que una selección concreta se registra con procedencia y hash.
 
 ## Proveedores y laboratorio
 
