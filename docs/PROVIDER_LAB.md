@@ -19,8 +19,8 @@ Esto no autoriza a agregar GPU, Ollama o almacenamiento persistente al producto 
 | Candidato | Uso | Estado | Criterio de salida |
 |---|---|---|---|
 | OpenRouter/Llama | baseline de conversación Bardera | VERIFICADO en VPS | benchmark y continuidad sin bloqueos indebidos |
-| Hugging Face Router | fallback compatible | VERIFICADO: HTTP 200 en smoke; batería pendiente | batería completa y salida suficiente |
-| Google AI Studio | laboratorio multimodal / comparación | VERIFICADO: HTTP 200 en smoke; multimodal pendiente | costo, seguridad y benchmark |
+| Hugging Face Router | fallback compatible | INFRA/PERSONALIDAD: HTTP 200 inicial, 5 hard-fails y HTTP 402 en T10 | resolver cuota/pago y repetir batería |
+| Google AI Studio | laboratorio multimodal / comparación | INFRA: 5 turnos sin hard-fail, timeout en T6 | resolver latencia y repetir batería |
 | Gemma vía Ollama | laboratorio local de bajo volumen | PROPUESTA | reproducibilidad, VRAM/latencia y benchmark |
 
 La matriz no decide un ganador por reputación. `PASS` requiere el benchmark de la Queen, revisión de salidas, límites de seguridad intactos y registro reproducible. Un modelo puede pasar Bardera y fallar otra Queen.

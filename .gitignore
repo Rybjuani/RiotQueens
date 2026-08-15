@@ -42,4 +42,4 @@ README.txt
 # local asset rollback copies
 .asset_backup*/
 
-scripts/modismo_results_*.json
+artifacts/evals/

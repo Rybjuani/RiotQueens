@@ -60,6 +60,30 @@ python3 scripts/eval_modismos.py --direct --from-glossary --max-turns 12
 python3 scripts/eval_modismos.py --direct --from-glossary --no-few-shot --max-turns 12
 ```
 
+The harness reads only the canonical root `.env` plus explicit process
+environment. It never loads `/home/rybjuani/Escritorio/.env`. Raw JSON results
+are written to ignored `artifacts/evals/` and must not be committed.
+
+Google AI Studio through its OpenAI-compatible text endpoint:
+
+```bash
+RIOTQUEENS_MODEL_PROVIDER=openai \
+RIOTQUEENS_MODEL_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai \
+RIOTQUEENS_MODEL_API_KEY="$GEMINI_API_KEY" \
+RIOTQUEENS_MODEL_NAME=gemini-2.5-flash \
+  python3 scripts/eval_modismos.py --direct --from-glossary --no-frequency-penalty --max-tokens 512 --max-turns 12
+```
+
+Hugging Face Router:
+
+```bash
+RIOTQUEENS_MODEL_PROVIDER=openai \
+RIOTQUEENS_MODEL_BASE_URL=https://router.huggingface.co/v1 \
+RIOTQUEENS_MODEL_API_KEY="$RIOTQUEENS_FALLBACK_MODEL_API_KEY" \
+RIOTQUEENS_MODEL_NAME=openai/gpt-oss-120b:ovhcloud \
+  python3 scripts/eval_modismos.py --direct --from-glossary --max-turns 12
+```
+
 ## Relación con SPECT
 
 Los ejemplos del sandbox son **referencia y regresión de voz**, no respuestas para copiar literal al runtime. El system prompt server-owned se **inspira** en este ADN; el test de casting **usa** estos user turns porque son el entorno real de la Queen.

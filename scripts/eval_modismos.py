@@ -262,7 +262,8 @@ def chat_via_openai_direct(
     history: list[dict[str, str]],
     *,
     temperature: float,
-    frequency_penalty: float,
+    frequency_penalty: float | None,
+    max_tokens: int,
     few_shot: bool,
 ) -> str:
     base = os.environ["RIOTQUEENS_MODEL_BASE_URL"].rstrip("/")
@@ -272,15 +273,18 @@ def chat_via_openai_direct(
     if few_shot:
         prefix.extend(FEW_SHOT)
     messages = [*prefix, *history, {"role": "user", "content": message}]
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if frequency_penalty is not None:
+        payload["frequency_penalty"] = frequency_penalty
     r = client.post(
         f"{base}/chat/completions",
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "frequency_penalty": frequency_penalty,
-        },
+        json=payload,
         timeout=120.0,
     )
     r.raise_for_status()
@@ -302,6 +306,12 @@ def main() -> int:
     )
     parser.add_argument("--max-turns", type=int, default=12)
     parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("artifacts/evals"),
+        help="Local ignored directory for raw benchmark results",
+    )
+    parser.add_argument(
         "--from-glossary",
         action="store_true",
         help="Use user turns from Bardera NotebookLM sandbox (honest benchmark)",
@@ -318,15 +328,16 @@ def main() -> int:
     )
     parser.add_argument("--temperature", type=float, default=0.9)
     parser.add_argument("--frequency-penalty", type=float, default=0.4)
+    parser.add_argument("--max-tokens", type=int, default=512)
+    parser.add_argument(
+        "--no-frequency-penalty",
+        action="store_true",
+        help="Omit frequency_penalty for compatibility endpoints that reject it",
+    )
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
-    load_dotenv_files(
-        [
-            root / ".env",
-            Path("/home/rybjuani/Escritorio/.env"),
-        ]
-    )
+    load_dotenv_files([root / ".env"])
 
     # Default = glossary (honest). --soft only if explicitly requested.
     if args.soft and not args.from_glossary:
@@ -338,10 +349,11 @@ def main() -> int:
     provider = os.environ.get("RIOTQUEENS_MODEL_PROVIDER", "unknown")
     battery = "glossary" if turns is TURNS_GLOSSARY else "soft"
     few_shot = not args.no_few_shot
+    frequency_penalty = None if args.no_frequency_penalty else args.frequency_penalty
     print(
         f"provider={provider} model={model_name} mode={'direct' if args.direct else 'api'} "
         f"battery={battery} few_shot={few_shot} temp={args.temperature} "
-        f"freq_pen={args.frequency_penalty}"
+        f"freq_pen={frequency_penalty} max_tokens={args.max_tokens}"
     )
 
     if args.direct and (
@@ -357,6 +369,7 @@ def main() -> int:
     results: list[dict] = []
     hard_fails = 0
     capability_boundaries = 0
+    infra_failures = 0
 
     with httpx.Client() as client:
         for i, turn in enumerate(turns[: args.max_turns], start=1):
@@ -367,7 +380,8 @@ def main() -> int:
                         turn,
                         history,
                         temperature=args.temperature,
-                        frequency_penalty=args.frequency_penalty,
+                        frequency_penalty=frequency_penalty,
+                        max_tokens=args.max_tokens,
                         few_shot=few_shot,
                     )
                     history.append({"role": "user", "content": turn})
@@ -378,8 +392,16 @@ def main() -> int:
                     )
             except Exception as exc:  # noqa: BLE001 — lab harness
                 print(f"T{i} ERROR {type(exc).__name__}: {exc}")
-                results.append({"turn": i, "user": turn, "error": str(exc), "hard_fail": True})
-                hard_fails += 1
+                results.append(
+                    {
+                        "turn": i,
+                        "user": turn,
+                        "error": type(exc).__name__,
+                        "infra_failure": True,
+                        "hard_fail": False,
+                    }
+                )
+                infra_failures += 1
                 break
 
             score = score_reply(content)
@@ -412,13 +434,20 @@ def main() -> int:
         "source": "docs/canon/BARDERA_SANDBOX_VOICE.md" if battery == "glossary" else "soft",
         "few_shot": few_shot,
         "temperature": args.temperature,
-        "frequency_penalty": args.frequency_penalty,
+        "frequency_penalty": frequency_penalty,
         "turns": len(results),
         "hard_fails": hard_fails,
         "capability_boundaries": capability_boundaries,
+        "infra_failures": infra_failures,
         "lexicon_unique_hits": lexicon_total,
         "lexicon_unique_count": len(lexicon_total),
-        "verdict": "FAIL" if hard_fails else "PASS_HEURISTIC",
+        "verdict": (
+            "INFRA_FAILURE"
+            if infra_failures
+            else "FAIL"
+            if hard_fails
+            else "PASS_HEURISTIC"
+        ),
         "note": (
             "Heuristic only. Glossary battery is the honest voice benchmark. "
             "Inoculation + few-shot + sampling aim to reduce corporate refusals; "
@@ -426,10 +455,14 @@ def main() -> int:
         ),
         "results": results,
     }
-    out = root / "scripts" / f"modismo_results_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    output_dir = args.output_dir
+    if not output_dir.is_absolute():
+        output_dir = root / output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out = output_dir / f"modismo_results_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
     out.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nverdict={summary['verdict']} hard_fails={hard_fails} wrote={out.name}")
-    return 1 if hard_fails else 0
+    return 2 if infra_failures else 1 if hard_fails else 0
 
 
 if __name__ == "__main__":
