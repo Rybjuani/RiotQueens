@@ -1,6 +1,6 @@
 # RiotQueens.ai
 
-RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura útil ya existente. El objetivo inmediato es conectar dos landings autoritativos con una conversación real, continuidad de sesión honesta y previews públicos, sin presentar capacidades futuras como disponibles.
+RiotQueens.ai es una experiencia `+18` de personajes virtuales ficticios, originales y curados por el owner. La plataforma pone a cada Queen al frente y esconde la complejidad de modelos, memoria, proveedores y media detrás de una conversación coherente.
 
 > **LANDINGS MANDAN. PRODUCTO DEBAJO. COMPLEJIDAD ESCONDIDA. QUEEN AL FRENTE.**
 
@@ -8,11 +8,14 @@ RiotQueens.ai está reconstruyendo su base canónica sobre una arquitectura úti
 
 - [`SPECT.md`](SPECT.md): producto, arquitectura, estado verificado y próximos cortes.
 - [`AGENTS.md`](AGENTS.md): reglas operativas para cualquier agente o contribuidor.
+- [`RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md`](RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md): estado operativo de la recuperación, evidencia auditada y continuidad para el siguiente agente.
 - [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
 - [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md): patrón sanitizado de ruptura de scope, contexto y personaje observado en productos externos.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
 - `Riotqueens-Ai-Landing-Mock.html`: autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes.
 - `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
+
+`RiotQueens-worktree` es el único repo canónico porque contiene Git, CI, despliegue y el estado ejecutable. `/home/rybjuani/Escritorio/RiotQueens` es el pool creativo local de origen: no es otro producto ni otra autoridad, no se sirve desde el VPS y no se elimina automáticamente. Sus materiales sólo entran al repo como copias verificadas, derivados o registros de procedencia.
 
 La documentación stale se elimina del HEAD y su respaldo de contingencia se guarda en `/home/rybjuani/Documentos/_scratch_trash/`; sólo puede recuperarse por decisión explícita actual del owner.
 
@@ -63,6 +66,16 @@ Un reinicio de la API borra conversación y memoria actuales. Los identificadore
 - Docker Compose para ejecución y despliegue
 - proveedor de modelos desacoplado mediante adaptadores
 
+## Cómo se construye una Queen
+
+La esencia compartida de RiotQueens se combina con una identidad, voz, glosario y benchmark independientes por Queen. [`docs/QUEEN_CURATION_PIPELINE.md`](docs/QUEEN_CURATION_PIPELINE.md) documenta el flujo NotebookLM → informe estructurado → perfil versionado → prueba de modelo → registro de aprobación. Aprobar el benchmark de modismos de La Bardera es un criterio de casting para ese modelo y esa configuración; no convierte a Bardera en la voz de las demás.
+
+`Qwen_html.html`, `MANIFIESTO_BARDI.pdf`, `barderainvernadero.png` y los manifiestos del owner fueron auditados como fuentes de diseño, misión, visión y curaduría. No se copian automáticamente al runtime: su clasificación y hashes están en [`docs/canon/QUEEN_SOURCE_REGISTER.md`](docs/canon/QUEEN_SOURCE_REGISTER.md).
+
+## Proveedores y laboratorio
+
+OpenRouter/Llama sigue siendo el proveedor primario configurado del entorno de prueba y Hugging Face es un fallback opcional ya validado en smoke. Google AI Studio (`GEMINI_API_KEY`) queda incorporado al roadmap como proveedor multimodal y de laboratorio; la API respondió en smoke, pero la batería de voz y la ruta multimodal todavía deben aprobarse. La propuesta Gemma + Ollama + llama.cpp se documenta en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md), sin prometer capacidad pública ni commitear credenciales.
+
 ## Repositorio
 
 ```text
@@ -87,7 +100,7 @@ make test
 
 El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no se levantan todavía porque el dominio no tiene adaptadores que los consuman. El proveedor por defecto es `mock`: no se debe presentar esa respuesta como calidad conversacional final.
 
-El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback independiente de Hugging Face se registra con `RIOTQUEENS_FALLBACK_MODEL_*`; ninguna clave se expone al frontend.
+El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback independiente de Hugging Face se registra con `RIOTQUEENS_FALLBACK_MODEL_*`. Google AI Studio y Ollama usan variables server-side documentadas en `.env.example`; ninguna clave se expone al frontend. El único archivo de configuración local es `.env` en la raíz de este repo, ignorado por Git. Nunca se copia `.env_final(1)` ni una clave real al repo.
 
 ## Próximo objetivo
 
@@ -96,3 +109,5 @@ El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback 
 3. conectar persistencia durable sin cambiar los scopes del dominio;
 4. configurar DNS/TLS y repetir smoke tests sobre una release identificada;
 5. avanzar con media privada y entitlements sólo después de definir autorización y oferta comercial.
+
+Para retomar el trabajo, leer en este orden: `AGENTS.md`, `SPECT.md`, este README, el handoff operativo, `docs/DECISION_REGISTER.md` y el documento específico de la tarea. Cada cambio debe dejar evidencia, pruebas proporcionales y un commit convencional.

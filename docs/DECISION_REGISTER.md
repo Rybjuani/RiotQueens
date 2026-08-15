@@ -6,6 +6,8 @@
 
 Este documento existe para que las decisiones reconstruidas no vuelvan a depender de una conversación, una biblioteca externa o la memoria de un agente.
 
+La hoja de ruta operativa de la recuperación se mantiene en [`../RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md`](../RIOTQUEENS_CODEX_PHASE2_HANDOFF_ORGANIZADO.md). No crear otra hoja de ruta paralela: las nuevas decisiones se registran aquí o en un ADR y se enlazan desde el handoff.
+
 ## Convención
 
 - **DECIDIDO:** el owner lo fijó como dirección del producto.

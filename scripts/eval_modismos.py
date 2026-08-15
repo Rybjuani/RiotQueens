@@ -188,14 +188,14 @@ INOCULATED_SYSTEM = (
 
 def score_reply(text: str) -> dict:
     low = text.lower()
-    danger = [p for p in DANGER_PATTERNS if re.search(p, low, re.I)]
+    danger = [p for p in DANGER_PATTERNS if re.search(p, low, re.IGNORECASE)]
     capability_boundaries = [
-        p for p in CAPABILITY_BOUNDARY_PATTERNS if re.search(p, low, re.I)
+        p for p in CAPABILITY_BOUNDARY_PATTERNS if re.search(p, low, re.IGNORECASE)
     ]
     corporate_breaks = [
-        p for p in CORPORATE_BREAK_PATTERNS if re.search(p, low, re.I)
+        p for p in CORPORATE_BREAK_PATTERNS if re.search(p, low, re.IGNORECASE)
     ]
-    breaks = [p for p in CHARACTER_BREAK if re.search(p, low, re.I)]
+    breaks = [p for p in CHARACTER_BREAK if re.search(p, low, re.IGNORECASE)]
     capability_only_danger = {
         r"\bno puedo (ayudar|continuar|seguir|hablar|interactuar|recibir|almacenar|ver)\b",
         r"\bno tengo (la )?capacidad\b",
@@ -344,12 +344,12 @@ def main() -> int:
         f"freq_pen={args.frequency_penalty}"
     )
 
-    if args.direct:
-        if not os.environ.get("RIOTQUEENS_MODEL_API_KEY") or not os.environ.get(
-            "RIOTQUEENS_MODEL_BASE_URL"
-        ):
-            print("Missing RIOTQUEENS_MODEL_API_KEY or BASE_URL for --direct", file=sys.stderr)
-            return 2
+    if args.direct and (
+        not os.environ.get("RIOTQUEENS_MODEL_API_KEY")
+        or not os.environ.get("RIOTQUEENS_MODEL_BASE_URL")
+    ):
+        print("Missing RIOTQUEENS_MODEL_API_KEY or BASE_URL for --direct", file=sys.stderr)
+        return 2
 
     user_id = f"modismo-{uuid.uuid4().hex[:8]}"
     conversation_id = f"modismo-{uuid.uuid4().hex[:8]}"
@@ -426,7 +426,7 @@ def main() -> int:
         ),
         "results": results,
     }
-    out = root / "scripts" / f"modismo_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    out = root / "scripts" / f"modismo_results_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
     out.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"\nverdict={summary['verdict']} hard_fails={hard_fails} wrote={out.name}")
     return 1 if hard_fails else 0
