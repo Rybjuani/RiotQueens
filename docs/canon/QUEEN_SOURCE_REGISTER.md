@@ -12,6 +12,10 @@
 | `Escritorio/glosariomodismos.md` | CANON AUTORAL / corpus de evaluación | benchmark y regresión; no copiar respuestas literales | `22d7e22a9c8779967e0b3ed4b8de7d9556131581c0d0935f53816f5123dd4b4f` |
 | `Descargas/MANIFIESTO RIOTQUEEN DEL OESTE_ RITMO, SUSTANCIA Y AGUANTE.md` | CANON AUTORAL / manifiesto del owner | lore, identidad y vocabulario; claims públicos requieren revalidación | `564c7a8fb6d582c4d0a866cf03c7af12fdfbe79da735b4638480282d8993720f` |
 
+## Propuesta externa de Cloud Lab
+
+La propuesta de `/Escritorio/propuesta/` se conserva fuera del repo. Es evidencia de intención y diseño operativo, no una segunda autoridad. Su auditoría y clasificación están en [`docs/CLOUD_LAB.md`](../CLOUD_LAB.md); sus hashes permiten detectar cambios sin copiar PDFs, capturas ni workflows privados al producto.
+
 ## Material de `/Escritorio/RiotQueens`
 
 `RiotQueens Seleccionadas/` es un pool creativo local con subcarpetas por Queen y una intención explícita: revisar 4–5 fotos de cada una en pantalla y reordenarlas con coherencia de personalidad. Se conserva como fuente externa, no como segundo repo. Los archivos con branding histórico de Companion Studio o sin procedencia clara son referencias de trabajo, no assets públicos automáticos.

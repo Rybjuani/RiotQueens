@@ -306,6 +306,8 @@ Secuencia inicial:
 
 Para I2V, la prioridad es identidad facial estable por encima de animación compleja. Los workflows históricos son pistas de investigación y no se consideran ejecutables hasta validar nodos, modelos, versiones y conexiones.
 
+La propuesta de Cloud Lab queda documentada como dirección futura: una GPU pay-as-you-go puede producir derivados visuales o atender media multimodal de T2/T3, pero el VPS continúa siendo el plano de control CPU y la experiencia inicial es `library-first`. Adjuntar fotos, compartirlas con una Queen y recibir outputs requiere autenticación, entitlements, consentimiento, storage privado, moderación, límites de costo y URLs firmadas implementados y verificados. No es una capacidad publicada por la existencia de un workflow.
+
 ## 10. Seguridad y operación
 
 - secretos solo en variables o gestores de secretos;

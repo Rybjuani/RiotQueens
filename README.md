@@ -53,7 +53,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - storage privado, CDN y URLs firmadas;
 - entitlements, créditos y pagos;
 - entrega autorizada de media premium;
-- Cloud Lab conectado al producto;
+- Cloud Lab conectado al producto (dirección futura documentada; no disponible);
 - dominio de producción y TLS validados.
 
 Un reinicio de la API borra conversación y memoria actuales. Los identificadores de usuario prototipo y conversación son scopes controlados por el navegador, no cuentas ni identidades seguras. La API rechaza Queens no registradas y ya no publica endpoints WIP de perfil, personajes configurables o media mock.
