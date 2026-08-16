@@ -26,7 +26,12 @@ Huellas verificadas de las copias locales designadas como canon:
 | `Riotqueens-Ai-Landing-Mock.html` | `5307742d62016fe0f3691ccaf1b57955e3dffe105dcf0c773da53531fb68750e` |
 | `Reiniciando-chat-anterior.html` | `246ce2e0d893f793e8effd268c2a5a00d29b7dc385f071e422bdb25d4bcdc68b` |
 
-Los HTML crudos permanecen fuera del repositorio porque contienen bundles, datos embebidos y lenguaje histórico no publicable. Sus composiciones y contratos de interacción fueron auditados y trasladados al frontend Next.js; las huellas se conservan para comprobar fidelidad sin convertir los snapshots en runtime.
+Los HTML crudos se conservan como snapshots no ejecutables en
+[`docs/reference/visual/`](docs/reference/visual/). Contienen bundles, datos
+embebidos y lenguaje histórico no publicable: nunca se sirven desde el
+frontend ni sustituyen este SPECT. Sus composiciones y contratos de
+interacción fueron auditados y trasladados al frontend Next.js; las huellas
+permiten comprobar fidelidad sin convertir los snapshots en runtime.
 
 Logo oficial bloqueado:
 

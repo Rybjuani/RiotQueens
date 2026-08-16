@@ -12,8 +12,8 @@ RiotQueens.ai es una experiencia `+18` de personajes virtuales ficticios, origin
 - [`docs/DECISION_REGISTER.md`](docs/DECISION_REGISTER.md): decisiones recuperadas, estado y pendientes que no deben volver a depender de un chat.
 - [`docs/EXTERNAL_FAILURE_PATTERN.md`](docs/EXTERNAL_FAILURE_PATTERN.md): patrón sanitizado de ruptura de scope, contexto y personaje observado en productos externos.
 - [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md): contrato y evidencia del primer despliegue.
-- `Riotqueens-Ai-Landing-Mock.html`: autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes.
-- `Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
+- `docs/reference/visual/Riotqueens-Ai-Landing-Mock.html`: autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes.
+- `docs/reference/visual/Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
 
 `RiotQueens-worktree` es el único repo canónico porque contiene Git, CI, despliegue y el estado ejecutable. `/home/rybjuani/Escritorio/RiotQueens` es el pool creativo local de origen: no es otro producto ni otra autoridad, no se sirve desde el VPS y no se elimina automáticamente. Sus materiales sólo entran al repo como copias verificadas, derivados o registros de procedencia.
 
@@ -71,7 +71,7 @@ Un reinicio de la API borra conversación y memoria actuales. Los identificadore
 
 La esencia compartida de RiotQueens se combina con una identidad, voz, glosario y benchmark independientes por Queen. [`docs/QUEEN_CURATION_PIPELINE.md`](docs/QUEEN_CURATION_PIPELINE.md) documenta el flujo NotebookLM → informe estructurado → perfil versionado → prueba de modelo → registro de aprobación. Aprobar el benchmark de modismos de La Bardera es un criterio de casting para ese modelo y esa configuración; no convierte a Bardera en la voz de las demás.
 
-`Qwen_html.html`, `MANIFIESTO_BARDI.pdf`, `barderainvernadero.png` y los manifiestos del owner fueron auditados como fuentes de diseño, misión, visión y curaduría. No se copian automáticamente al runtime: su clasificación y hashes están en [`docs/canon/QUEEN_SOURCE_REGISTER.md`](docs/canon/QUEEN_SOURCE_REGISTER.md).
+`Qwen_html.html`, `MANIFIESTO_BARDI.pdf`, `barderainvernadero.png` y los manifiestos del owner fueron auditados como fuentes de diseño, misión, visión y curaduría. El snapshot de `Qwen_html.html` está en [`docs/reference/audits/`](docs/reference/audits/); los demás originales privados siguen fuera del repo. Ninguno se copia automáticamente al runtime: su clasificación y hashes están en [`docs/canon/QUEEN_SOURCE_REGISTER.md`](docs/canon/QUEEN_SOURCE_REGISTER.md).
 
 ## Mapa único de trabajo
 

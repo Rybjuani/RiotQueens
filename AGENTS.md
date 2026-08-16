@@ -6,8 +6,8 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 
 - El owner define producto, prioridades, canon y aceptación final.
 - Los dos landings mandan conjuntamente.
-- Riotqueens-Ai-Landing-Mock.html es autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes; no gobierna roster, asociaciones Queen↔Tier, voz o personalidad canónica, no reactiva identidades históricas y no congela copy, pricing o claims superados por decisiones posteriores del owner.
-- `Reiniciando-chat-anterior.html` gobierna continuidad, interacción y flujo.
+- `docs/reference/visual/Riotqueens-Ai-Landing-Mock.html` es autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes; no gobierna roster, asociaciones Queen↔Tier, voz o personalidad canónica, no reactiva identidades históricas y no congela copy, pricing o claims superados por decisiones posteriores del owner.
+- `docs/reference/visual/Reiniciando-chat-anterior.html` gobierna continuidad, interacción y flujo.
 - `RiotQueens_logo_design_202608082344.jpeg` es el logo oficial bloqueado; la copia web canónica tiene SHA-256 `e47df47761cdee8da0b7674b0bdb8f35a71086c24474a33d2b496de67ad3e3b1`.
 - No redibujar, reinterpretar, recortar destructivamente ni reemplazar el logo sin decisión expresa del owner.
 - No reinterpretar, homogeneizar ni reemplazar ninguno con una estética genérica.

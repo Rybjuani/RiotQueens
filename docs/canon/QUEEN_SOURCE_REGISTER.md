@@ -6,7 +6,7 @@
 
 | Fuente | Clasificación | Uso permitido | SHA-256 |
 |---|---|---|---|
-| `Escritorio/Qwen_html.html` | VERIFICADO / referencia visual-estructural | rescatar composición, tokens, flujo y ADN; revalidar copy contra SPECT | `600c873eb5d9c40f5bb964c2aab4c61780a97e9886f1319ab1591b8a8a481b2a` |
+| `docs/reference/audits/Qwen_html.html` (origen: `Escritorio/mix archivos/Qwen_html.html`) | VERIFICADO / referencia visual-estructural | rescatar composición, tokens, flujo y ADN; revalidar copy contra SPECT | `600c873eb5d9c40f5bb964c2aab4c61780a97e9886f1319ab1591b8a8a481b2a` |
 | `Escritorio/barderainvernadero.png` | VERIFICADO / evidencia de flujo NotebookLM | documentar personalización y perfil; no servir | `2ced6d941a7d01c1780495b070b510b37330f416e904919859cc457c759ee52b` |
 | `Escritorio/MANIFIESTO_BARDI.pdf` | CANON AUTORAL / fuente madre visual | derivar perfil estructurado; no usar como prompt literal | `4e947053f03c6d85bc01efaa03e00d490b36fe124502de5cd6461ed104df76e1` |
 | `Escritorio/glosariomodismos.md` | CANON AUTORAL / corpus de evaluación | benchmark y regresión; no copiar respuestas literales | `22d7e22a9c8779967e0b3ed4b8de7d9556131581c0d0935f53816f5123dd4b4f` |
