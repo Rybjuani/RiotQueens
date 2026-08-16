@@ -72,8 +72,9 @@ Los valores secretos jamás se incluyen en Git, handoffs, logs ni chat.
   el provider es reemplazable. Repetir el benchmark completo tras cada cambio.
 - No importes el pool creativo por completitud. Migrar sólo código/configuración
   vigente, assets autorizados con procedencia o evidencia imprescindible.
-- No crear un directorio `legacy` dentro del repo por defecto: Git conserva la
-  historia; documentación stale se elimina del HEAD.
+- `legacy/` conserva material histórico retirado sólo para procedencia o
+  recuperación forense. No es autoridad y no debe usarse para reconstruir el
+  producto.
 - El único `.env` operativo es el de la raíz del worktree; nunca copiar ni
   commitear variantes históricas o secretos.
 

@@ -12,8 +12,8 @@ El owner define producto, prioridades, canon y aceptación final.
 
 Los dos landings mandan conjuntamente dentro de sus límites vigentes:
 
-1. `Riotqueens-Ai-Landing-Mock.html` es autoridad visual, compositiva y de ADN de diseño.
-2. `Reiniciando-chat-anterior.html` es autoridad de continuidad, interacción y flujo desde los controles del primer landing.
+1. `docs/reference/visual/Riotqueens-Ai-Landing-Mock.html` es autoridad visual, compositiva y de ADN de diseño.
+2. `docs/reference/visual/Reiniciando-chat-anterior.html` es autoridad de continuidad, interacción y flujo desde los controles del primer landing.
 
 Ninguno es un boceto descartable ni puede ser reemplazado por un rediseño genérico. La expansión debe crecer desde ambos. Si entre ellos aparece una contradicción material, no se resuelve por preferencia del agente: se documenta y decide el owner.
 
@@ -23,8 +23,8 @@ Huellas verificadas de las copias locales designadas como canon:
 
 | Archivo | SHA-256 |
 |---|---|
-| `Riotqueens-Ai-Landing-Mock.html` | `5307742d62016fe0f3691ccaf1b57955e3dffe105dcf0c773da53531fb68750e` |
-| `Reiniciando-chat-anterior.html` | `246ce2e0d893f793e8effd268c2a5a00d29b7dc385f071e422bdb25d4bcdc68b` |
+| `docs/reference/visual/Riotqueens-Ai-Landing-Mock.html` | `5307742d62016fe0f3691ccaf1b57955e3dffe105dcf0c773da53531fb68750e` |
+| `docs/reference/visual/Reiniciando-chat-anterior.html` | `246ce2e0d893f793e8effd268c2a5a00d29b7dc385f071e422bdb25d4bcdc68b` |
 
 Los HTML crudos se conservan como snapshots no ejecutables en
 [`docs/reference/visual/`](docs/reference/visual/). Contienen bundles, datos
