@@ -18,9 +18,13 @@
 
 La propuesta de `/Escritorio/propuesta/` se conserva fuera del repo. Es evidencia de intención y diseño operativo, no una segunda autoridad. Su auditoría y clasificación están en [`docs/CLOUD_LAB.md`](../CLOUD_LAB.md); sus hashes permiten detectar cambios sin copiar PDFs, capturas ni workflows privados al producto.
 
-## Material de `/Escritorio/RiotQueens`
+## Material creativo incorporado al workspace
 
-`RiotQueens Seleccionadas/` es un pool creativo local con subcarpetas por Queen y una intención explícita: revisar 4–5 fotos de cada una en pantalla y reordenarlas con coherencia de personalidad. Se conserva como fuente externa, no como segundo repo. Los archivos con branding no vigente o sin procedencia clara son referencias de trabajo, no assets públicos automáticos.
+`assets/private/selected/` conserva los masters y selecciones del owner con
+subcarpetas por Queen y la intención explícita de revisar 4–5 fotos en pantalla
+y reordenarlas con coherencia de personalidad. Es privado y gitignored; no es
+un segundo repo. Los archivos con branding no vigente o sin procedencia clara
+son referencias de trabajo, no assets públicos automáticos.
 
 Los previews actuales en `apps/web/public/` son copias provisionales ya registradas en `docs/ASSET_PROVENANCE.md` y `config/public-media.json`. No se sobrescriben masters; cada reemplazo exige hash, procedencia, estado premium y revisión del owner.
 

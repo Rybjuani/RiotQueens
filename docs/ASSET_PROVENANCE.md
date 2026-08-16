@@ -10,9 +10,29 @@ El producto prioriza **compañeras conversacionales** (humor, creatividad, chat)
 
 Cada Queen mantiene **memoria y conversación aisladas** en backend por `character_id`. Las grillas del roster son previews provisionales: el owner reordena al verlas en pantalla.
 
-Pool fuente: `Escritorio/RiotQueens/RiotQueens Seleccionadas/` (no se sirve desde el VPS). Flow y Mage son ecosistemas canónicos externos del owner y contienen material ya producido; los assets de esos ecosistemas sólo se vuelven parte del repo mediante una copia/derivado con procedencia y hash.
+Los masters seleccionados están ahora dentro del único workspace, en
+`assets/private/selected/`, una ruta gitignored que no se sirve desde el VPS.
+La copia fue verificada byte a byte contra el pool original: 66 archivos,
+distribuidos entre Bardera (7), Chela (21), Gede (19), Rocha (2), Tóxica
+Consciente (13) y cuatro piezas de moodboard/raíz. Flow y Mage son
+ecosistemas canónicos externos del owner y contienen material ya producido;
+sus assets sólo se vuelven parte del producto mediante una copia/derivado con
+procedencia y hash.
 
-**Evidencia recuperada:** la sesión viva de Grok que creó el roster dejó el índice estructurado y los hashes, posteriormente incorporados en el commit `093bc32`: 21 entradas allowlisted (logo + Bardera 5, Tóxica 5, Gede 5, Rocha 2 y Chela 5). El estado verificable es `config/public-media.json` junto con esta tabla; no corresponde recatalogar esos previews desde cero. La selección final de masters/derivados sigue siendo del owner.
+La relación actual es explícita: los previews tracked en
+`apps/web/public/queens/` son derivados públicos allowlisted del proceso de
+curaduría y están hasheados en `config/public-media.json`; no hubo
+coincidencia SHA-256 exacta con los 22 previews públicos, por lo que no se
+afirma una relación master→slot individual todavía. Esa relación queda
+`PENDING_OWNER_CURATED_MAPPING`, no se inventa por nombre de archivo.
+
+**Evidencia recuperada:** la sesión que creó el roster dejó el índice
+estructurado y los hashes, posteriormente incorporados en el commit
+`093bc32`: 23 entradas allowlisted (logo + 22 previews: Bardera 5,
+Tóxica 5, Gede 5, Rocha 2 y Chela 5). El estado verificable es
+`config/public-media.json` junto con esta tabla; no corresponde recatalogar
+esos previews desde cero. La selección final de masters/derivados sigue
+siendo del owner.
 
 ## Brand
 

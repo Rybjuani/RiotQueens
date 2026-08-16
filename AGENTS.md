@@ -15,9 +15,6 @@ Antes de modificar producto, leer [`SPECT.md`](SPECT.md), este archivo y el cont
 - `SPECT.md` es la autoridad funcional y arquitectónica vigente.
 - `docs/DECISION_REGISTER.md` conserva decisiones recuperadas, propuestas y pendientes sin convertirlas automáticamente en canon.
 - La documentación stale se elimina del HEAD; un respaldo externo de contingencia no es autoridad y sólo puede recuperarse por decisión explícita actual del owner.
-- `legacy/` es un contenedor histórico explícitamente no canónico; nunca
-  reconstruir desde allí producto, políticas, roster, capacidades, legalidad o
-  arquitectura.
 
 ## Producto y lenguaje
 

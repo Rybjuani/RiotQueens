@@ -7,7 +7,8 @@
 ## Estado actual verificado
 
 - El worktree es el único código, runtime y documentación vigente. El directorio
-  hermano `RiotQueens` es un pool creativo externo: no es runtime ni autoridad.
+  El patrimonio creativo seleccionado está dentro de
+  `assets/private/selected/`; no existe un segundo repo necesario.
 - Las cinco Queens son canónicas; sólo Bardera está implementada en runtime.
 - Bardera texto tiene `TECHNICAL_PRE_RELEASE_PASS` con Gemini 3.1 Flash Lite:
   12/12 reproducible por API, sin hard-fails, truncaciones ni falsas promesas.
@@ -72,9 +73,6 @@ Los valores secretos jamás se incluyen en Git, handoffs, logs ni chat.
   el provider es reemplazable. Repetir el benchmark completo tras cada cambio.
 - No importes el pool creativo por completitud. Migrar sólo código/configuración
   vigente, assets autorizados con procedencia o evidencia imprescindible.
-- `legacy/` conserva material histórico retirado sólo para procedencia o
-  recuperación forense. No es autoridad y no debe usarse para reconstruir el
-  producto.
 - El único `.env` operativo es el de la raíz del worktree; nunca copiar ni
   commitear variantes históricas o secretos.
 

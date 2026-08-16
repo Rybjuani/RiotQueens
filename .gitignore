@@ -45,3 +45,6 @@ README.txt
 .asset_backup*/
 
 artifacts/evals/
+
+# Owner-curated private masters. Keep inside the canonical workspace, never in Git.
+assets/private/

@@ -256,6 +256,12 @@ pedido del usuario
 - En Kindroid se verificaron bucles, deriva de idioma, aceptación semántica de pseudo-roles y contaminación de personaje; el owner reporta además recuperación inesperada de otros chats propios, cuyo turno exacto se perdió al eliminar el personaje.
 - No fueron pruebas controladas y la causa raíz o proveedor concreto no están verificados.
 - El patrón alcanza para imponer un requisito defensivo; no alcanza para atribuir públicamente una vulnerabilidad a un tercero.
+- El baseline local de Bardera confirma dos límites actuales: no hay memoria
+  durable entre sesiones ni recepción multimodal operativa. La respuesta debe
+  ser honesta sobre no recordar o no haber recibido una imagen; no debe
+  simular capacidad. Dentro de esos límites, el casting observado puede sonar
+  genéricamente rioplatense y debe volver a evaluarse con el corpus completo
+  cuando memoria y multimodalidad estén realmente implementadas.
 
 El análisis conjunto, límites de evidencia y regresiones están en [`EXTERNAL_FAILURE_PATTERN.md`](EXTERNAL_FAILURE_PATTERN.md).
 

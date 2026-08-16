@@ -15,10 +15,11 @@ RiotQueens.ai es una experiencia `+18` de personajes virtuales ficticios, origin
 - `docs/reference/visual/Riotqueens-Ai-Landing-Mock.html`: autoridad visual, compositiva y de ADN de diseño dentro del alcance reconocido por las fuentes vigentes.
 - `docs/reference/visual/Reiniciando-chat-anterior.html`: autoridad de continuidad e interacción.
 
-`RiotQueens-worktree` es el único repo canónico porque contiene Git, CI, despliegue y el estado ejecutable. `/home/rybjuani/Escritorio/RiotQueens` es el pool creativo local de origen: no es otro producto ni otra autoridad, no se sirve desde el VPS y no se elimina automáticamente. Sus materiales sólo entran al repo como copias verificadas, derivados o registros de procedencia.
-
-`legacy/` dentro de este repo conserva material histórico retirado. No es
-autoridad y no debe usarse para reconstruir producto.
+`RiotQueens-worktree` es el único repo canónico porque contiene Git, CI,
+despliegue, código, documentación y el patrimonio creativo operativo. Los
+masters seleccionados viven en `assets/private/selected/` (gitignored); los
+derivados públicos viven en `apps/web/public/`. No existe un segundo árbol
+necesario para ejecutar, entender o desplegar RiotQueens.
 
 La documentación stale se elimina del HEAD y su respaldo de contingencia se guarda en `/home/rybjuani/Documentos/_scratch_trash/`; sólo puede recuperarse por decisión explícita actual del owner.
 
