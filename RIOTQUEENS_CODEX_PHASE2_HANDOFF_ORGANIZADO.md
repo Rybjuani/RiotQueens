@@ -28,6 +28,8 @@
   falla cerrado y resuelve el Principal antes de autorización de dominio.
 - Auth0 contiene sólo IAM/sesión. Clickwrap +18, conversaciones, memoria, tiers,
   entitlements, media, preferencias sensibles y estado de Queen quedan propios.
+- El owner ya creó el tenant Auth0 CA; todavía falta configurar la aplicación
+  y la Custom API en el dashboard.
 - La migración de identidad es `ops/migrations/0001_identity.sql`.
 - Web usa `@auth0/nextjs-auth0` v4 con `/auth/*`; Caddy conserva `/api/*` para
   FastAPI y el resto para Next.js. El token de sesión se entrega por `/api/token`
@@ -43,9 +45,12 @@
 
 ### Gates pendientes
 
-1. Crear la Custom API/Auth0 Audience y cargar los valores no secretos/secretos
-   únicamente en `.env` local; ejecutar la migración en PostgreSQL antes de
-   activar auth para usuarios de prueba.
+1. Configurar la aplicación existente y crear la Custom API/Audience; completar
+   los valores en el único archivo local
+   /home/rybjuani/Escritorio/RiotQueens-worktree/.env. El archivo existe,
+   está ignorado por Git y es visible para el operador local; nunca imprimir
+   sus valores ni copiarlos a documentación. Ejecutar la migración PostgreSQL
+   antes de activar auth para usuarios de prueba.
 2. Producción continúa bloqueada hasta confirmación escrita de Auth0 sobre
    admisibilidad del producto +18 ficticio, subprocesadores/transferencias del
    tenant CA y mecanismo aplicable desde Argentina.
@@ -78,7 +83,8 @@ Los valores secretos jamás se incluyen en Git, handoffs, logs ni chat.
 
 ## Próxima acción operativa única
 
-Completar C3 no productivo: crear en Auth0 la Custom API `RiotQueens API` con
+Completar C3 no productivo: configurar la aplicación existente y crear en Auth0
+la Custom API `RiotQueens API` con
 identifier `https://api.riotqueens.ai`, configurar URLs/orígenes acordados,
 llenar `.env` local sin exponer secretos, ejecutar `0001_identity.sql` sobre
 PostgreSQL y realizar smoke de login/token/API sin desplegar producción.

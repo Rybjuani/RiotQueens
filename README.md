@@ -43,6 +43,8 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - historial visible recuperado al reabrir el chat para el mismo scope efímero mientras vive el proceso;
 - C3 de identidad no productivo: Auth0 CA sólo como IAM, binding transaccional
   `sub` → UUID RiotQueens propio, JWT fail-closed y browser ID sin autoridad;
+- el tenant Auth0 ya fue creado; queda configurar la aplicación, Custom
+  API/Audience, el único `.env` local y PostgreSQL;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
@@ -52,7 +54,7 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 ### Todavía no implementado
 
 - clickwrap +18 versionado y validado por backend;
-- activar Auth0 para usuarios de prueba: Custom API/Audience, migración de
+- activar Auth0 para usuarios de prueba: configuración de aplicación, Custom API/Audience, migración de
   identidad PostgreSQL y secretos locales;
 - persistencia durable de conversaciones y memorias;
 - storage privado, CDN y URLs firmadas;

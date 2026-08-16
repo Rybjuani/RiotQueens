@@ -316,9 +316,13 @@ El `.env` local es configuración de trabajo y no constituye una decisión de pr
 - **VERIFICADO:** existe el tenant Development `riotqueens-ai-ca` en Canadá,
   dominio `riotqueens-ai-ca.ca.auth0.com`, con la aplicación Regular Web
   Application `riotqueens-ai` configurada para Next.js. No contiene secretos
-  del repo. La integración web usa SDK v4 y `/auth/*`; Caddy preserva `/api/*`
-  para FastAPI. Queda pendiente crear la Custom API/Audience y cargar secretos
-  únicamente en `.env` local.
+  del repo. El owner confirmó que el tenant ya fue creado; el dashboard aún
+  requiere configurar la aplicación y la Custom API/Audience. La integración
+  web usa SDK v4 y `/auth/*`; Caddy preserva `/api/*` para FastAPI. El único
+  archivo local operativo es
+  /home/rybjuani/Escritorio/RiotQueens-worktree/.env, ignorado por Git y
+  visible para el operador local: se completa allí, nunca se imprime ni se
+  replica en documentación.
 - **Gate de producción pendiente:** respuesta escrita de Auth0 sobre compatibilidad `+18`, DPA aplicable, lista/versionado de subprocesadores, mecanismo para transferencias desde Argentina y alcance geográfico completo del tenant `CA`.
 
 ## 8. Reglas para no perder contexto otra vez
