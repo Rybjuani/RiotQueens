@@ -556,6 +556,29 @@ img {
   color: var(--plata);
 }
 
+.clickwrap-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--plata);
+}
+
+.clickwrap-row input {
+  margin-top: 3px;
+  accent-color: var(--rosa);
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.clickwrap-row a {
+  color: var(--cyan);
+  text-decoration: underline;
+}
+
 .modal-actions {
   margin-top: 18px;
   display: flex;

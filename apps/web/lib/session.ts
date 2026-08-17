@@ -9,6 +9,7 @@
 
 const CONVERSATION_STORAGE_KEY = "rq.conversation_id";
 const LEGACY_CONVERSATION_STORAGE_KEY = "cs.conversation_id";
+const PREAUTH_USER_STORAGE_KEY = "rq.preauth_user_id";
 const CLIENT_SCOPE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isClientScopeId(value: string): boolean {
@@ -40,7 +41,7 @@ function generateId(): string {
 function getSessionId(
   storageKey: string,
   ssrPlaceholder: string,
-  memoryKey: "conversation",
+  memoryKey: "conversation" | "preauth_user",
   legacyStorageKey?: string,
 ): string {
   if (typeof window === "undefined") {
@@ -72,11 +73,12 @@ function getSessionId(
   }
 }
 
-const inMemoryIds: { conversation: string | null } = {
+const inMemoryIds: { conversation: string | null; preauth_user: string | null } = {
   conversation: null,
+  preauth_user: null,
 };
 
-function getInMemoryId(key: "conversation"): string {
+function getInMemoryId(key: "conversation" | "preauth_user"): string {
   const existing = inMemoryIds[key];
   if (existing) return existing;
   const generated = generateId();
@@ -92,4 +94,12 @@ export function getConversationId(): string {
     "conversation",
     LEGACY_CONVERSATION_STORAGE_KEY,
   );
+}
+
+/**
+ * Pre-auth browser scope only. Used when NEXT_PUBLIC_AUTH_ENABLED=false.
+ * Never a durable identity: Auth0-derived UUID replaces this when auth is on.
+ */
+export function getPreAuthUserId(): string {
+  return getSessionId(PREAUTH_USER_STORAGE_KEY, "ssr-preauth-user", "preauth_user");
 }

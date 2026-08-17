@@ -41,6 +41,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
+from uuid import UUID
+
+import asyncpg
 
 
 def _utcnow() -> datetime:
@@ -297,6 +300,134 @@ def memory_context_section(memories: Sequence[MemoryRecord]) -> str | None:
 MEMORY_PROTECTIVE_WRAPPER = _MEMORY_PROTECTIVE_WRAPPER
 
 
+class PostgresMemoryStore:
+    """PostgreSQL-backed explicit user-fact memory store."""
+
+    def __init__(self, pool: asyncpg.Pool, max_per_scope: int = 32) -> None:
+        if max_per_scope < 0:
+            raise ValueError("max_per_scope must be >= 0")
+        self._pool = pool
+        self._max_per_scope = max_per_scope
+        self._locks: dict[MemoryScopeKey, asyncio.Lock] = {}
+
+    def _lock_for(self, scope: MemoryScopeKey) -> asyncio.Lock:
+        lock = self._locks.get(scope)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[scope] = lock
+        return lock
+
+    @property
+    def max_per_scope(self) -> int:
+        return self._max_per_scope
+
+    async def add_memory(self, scope: MemoryScopeKey, content: str) -> MemoryRecord:
+        async with self._lock_for(scope):
+            memory_id = uuid.uuid4()
+            created_at = datetime.now(UTC)
+            async with self._pool.acquire() as connection, connection.transaction():
+                await connection.execute(
+                    """
+                    INSERT INTO memories (
+                      id, user_id, character_id, content,
+                      memory_type, source, confidence, inferred, created_at
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, $8)
+                    """,
+                    memory_id,
+                    scope.user_id,
+                    scope.character_id,
+                    content,
+                    MEMORY_TYPE_USER_FACT,
+                    MEMORY_SOURCE_EXPLICIT,
+                    MEMORY_CONFIDENCE_HIGH,
+                    created_at,
+                )
+                # Keep the newest max_per_scope rows; drop older FIFO excess.
+                await connection.execute(
+                    """
+                    DELETE FROM memories
+                    WHERE id IN (
+                      SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                 ORDER BY created_at DESC, id DESC
+                               ) AS rn
+                        FROM memories
+                        WHERE user_id = $1 AND character_id = $2
+                      ) ranked
+                      WHERE rn > $3
+                    )
+                    """,
+                    scope.user_id,
+                    scope.character_id,
+                    self._max_per_scope,
+                )
+            return MemoryRecord(
+                id=str(memory_id),
+                user_id=scope.user_id,
+                character_id=scope.character_id,
+                content=content,
+                created_at=created_at,
+            )
+
+    async def list_memories(self, scope: MemoryScopeKey) -> list[MemoryRecord]:
+        async with self._lock_for(scope):
+            rows = await self._pool.fetch(
+                """
+                SELECT id, user_id, character_id, content, memory_type,
+                       source, confidence, inferred, created_at
+                FROM memories
+                WHERE user_id = $1 AND character_id = $2
+                ORDER BY created_at ASC, id ASC
+                """,
+                scope.user_id,
+                scope.character_id,
+            )
+            return [
+                MemoryRecord(
+                    id=str(row["id"]),
+                    user_id=row["user_id"],
+                    character_id=row["character_id"],
+                    content=row["content"],
+                    memory_type=row["memory_type"],
+                    source=row["source"],
+                    confidence=row["confidence"],
+                    inferred=bool(row["inferred"]),
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+    async def delete_memory(self, scope: MemoryScopeKey, memory_id: str) -> bool:
+        async with self._lock_for(scope):
+            try:
+                mid = UUID(memory_id)
+            except ValueError:
+                return False
+            result = await self._pool.execute(
+                """
+                DELETE FROM memories
+                WHERE id = $1 AND user_id = $2 AND character_id = $3
+                """,
+                mid,
+                scope.user_id,
+                scope.character_id,
+            )
+            return result.rsplit(" ", 1)[-1] != "0"
+
+    async def delete_all_for_scope(self, scope: MemoryScopeKey) -> int:
+        async with self._lock_for(scope):
+            result = await self._pool.execute(
+                """
+                DELETE FROM memories
+                WHERE user_id = $1 AND character_id = $2
+                """,
+                scope.user_id,
+                scope.character_id,
+            )
+            return int(result.rsplit(" ", 1)[-1])
+
+
 __all__ = [
     "InProcessMemoryStore",
     "MEMORY_CONFIDENCE_HIGH",
@@ -306,5 +437,7 @@ __all__ = [
     "MemoryRecord",
     "MemoryScopeKey",
     "MemoryStore",
+    "PostgresMemoryStore",
     "memory_context_section",
 ]
+

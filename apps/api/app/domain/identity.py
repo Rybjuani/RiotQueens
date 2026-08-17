@@ -52,8 +52,15 @@ class InMemoryIdentityRepository:
 class PostgresIdentityRepository:
     """Transactional PostgreSQL implementation of the external identity map."""
 
-    def __init__(self, pool: asyncpg.Pool) -> None:
+    def __init__(
+        self,
+        pool: asyncpg.Pool,
+        *,
+        consent_repository: object | None = None,
+    ) -> None:
         self._pool = pool
+        # Optional PostgresConsentRepository; typed loosely to avoid a cycle.
+        self._consent_repository = consent_repository
 
     async def resolve(self, identity: VerifiedExternalIdentity) -> Principal:
         async with self._pool.acquire() as connection, connection.transaction():
@@ -94,7 +101,14 @@ class PostgresIdentityRepository:
                     user_id = existing
             else:
                 user_id = existing
-        return Principal(user_id=str(user_id), tier=ServiceTier.T0, acceptance=None)
+        acceptance = None
+        if self._consent_repository is not None:
+            acceptance = await self._consent_repository.latest_for_user(str(user_id))
+        return Principal(
+            user_id=str(user_id),
+            tier=ServiceTier.T0,
+            acceptance=acceptance,
+        )
 
 
 class Auth0JWTVerifier:

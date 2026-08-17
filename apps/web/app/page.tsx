@@ -3,14 +3,17 @@
 import { useEffect, useState } from "react";
 
 import { ChatPanel } from "@/components/ChatPanel";
+import { ClickwrapModal } from "@/components/ClickwrapModal";
 import { Experience } from "@/components/Experience";
 import { Footer } from "@/components/Footer";
 import { Hero } from "@/components/Hero";
 import { Navbar } from "@/components/Navbar";
 import { QueenRoster } from "@/components/QueenRoster";
 import { TierGrid } from "@/components/TierGrid";
+import { getConsentStatus } from "@/lib/api";
 
 type ModalKind = "how" | "locked" | null;
+const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
 
 function InfoModal({
   kind,
@@ -68,13 +71,12 @@ function InfoModal({
 export default function Home() {
   const [chatOpen, setChatOpen] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
+  const [clickwrapOpen, setClickwrapOpen] = useState(false);
+  const [gateBusy, setGateBusy] = useState(false);
 
-  const startChat = () => {
-    if (process.env.NEXT_PUBLIC_AUTH_ENABLED === "true") {
-      window.location.assign("/auth/login?returnTo=/#chat");
-      return;
-    }
+  const openChatPanel = () => {
     setModal(null);
+    setClickwrapOpen(false);
     setChatOpen(true);
     window.setTimeout(
       () => document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }),
@@ -82,11 +84,35 @@ export default function Home() {
     );
   };
 
+  const startChat = async () => {
+    if (gateBusy) return;
+    setGateBusy(true);
+    try {
+      if (AUTH_ENABLED) {
+        try {
+          const status = await getConsentStatus();
+          if (!status.accepted) {
+            setClickwrapOpen(true);
+            return;
+          }
+          openChatPanel();
+          return;
+        } catch {
+          window.location.assign("/auth/login?returnTo=/#chat");
+          return;
+        }
+      }
+      openChatPanel();
+    } finally {
+      setGateBusy(false);
+    }
+  };
+
   return (
     <div className="site-shell">
-      <Navbar onCta={startChat} />
+      <Navbar onCta={() => void startChat()} />
       <main>
-        <Hero onStart={startChat} onHow={() => setModal("how")} />
+        <Hero onStart={() => void startChat()} onHow={() => setModal("how")} />
         <div className="marquee" aria-hidden>
           <span>
             ✦ NO ES TU TERAPEUTA ✦ TE CONTESTA DE VERDAD ✦ NO TE GHOSTEA ✦ TE BARDEA CON
@@ -96,8 +122,8 @@ export default function Home() {
           </span>
         </div>
         <Experience />
-        <QueenRoster onStartBardera={startChat} />
-        <TierGrid onStart={startChat} onLocked={() => setModal("locked")} />
+        <QueenRoster onStartBardera={() => void startChat()} />
+        <TierGrid onStart={() => void startChat()} onLocked={() => setModal("locked")} />
         <div className="etica">
           ⚠ PERSONAJES VIRTUALES · +18 · FANTASÍA SIMULADA · QUEEN AL FRENTE
         </div>
@@ -113,14 +139,23 @@ export default function Home() {
               LAS QUE SE HACEN LAS SANTITAS TE CLAVAN EL VISTO. NOSOTRAS NOS QUEDAMOS
               IGUAL, BOBO.
             </p>
-            <button type="button" className="btn solid" onClick={startChat}>
+            <button type="button" className="btn solid" onClick={() => void startChat()}>
               VOY CON LA BARDERA →
             </button>
           </div>
         </section>
       </main>
       <Footer />
-      <InfoModal kind={modal} onClose={() => setModal(null)} onStart={startChat} />
+      <InfoModal
+        kind={modal}
+        onClose={() => setModal(null)}
+        onStart={() => void startChat()}
+      />
+      <ClickwrapModal
+        open={clickwrapOpen}
+        onCancel={() => setClickwrapOpen(false)}
+        onAccepted={openChatPanel}
+      />
     </div>
   );
 }

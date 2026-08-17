@@ -10,11 +10,19 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .domain.authorization import Principal
+from .domain.consent import (
+    PostgresConsentRepository,
+    current_acceptance_requirement,
+    snapshot_matches_required,
+)
 from .domain.context import assemble_request_messages, build_model_request
 from .domain.contracts import (
     ChatAssistantResponse,
     ChatRequest,
     ChatResponse,
+    ConsentAcceptRequest,
+    ConsentAcceptResponse,
+    ConsentStatusResponse,
     ConversationDeleteResponse,
     ConversationMessageView,
     ConversationScopeRequest,
@@ -30,6 +38,7 @@ from .domain.contracts import (
 from .domain.conversations import (
     ConversationScopeKey,
     InProcessConversationStore,
+    PostgresConversationStore,
 )
 from .domain.identity import (
     PostgresIdentityRepository,
@@ -39,6 +48,7 @@ from .domain.identity import (
 from .domain.memories import (
     InProcessMemoryStore,
     MemoryScopeKey,
+    PostgresMemoryStore,
 )
 from .domain.providers.errors import (
     ProviderAuthError,
@@ -55,27 +65,60 @@ from .domain.queens import is_registered_queen
 from .domain.router import build_router, runtime_status
 
 
+def _env_int_optional(name: str, default: int) -> int:
+    """Read an int env var, falling back to default on missing/invalid."""
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return value if value >= 0 else default
+
+
+# Default in-process stores. When DATABASE_URL is set, lifespan swaps them
+# for Postgres-backed implementations without changing handlers.
+_CONVERSATION_MAX_TURNS = _env_int_optional("RIOTQUEENS_CONVERSATION_MAX_TURNS", 8)
+_MEMORY_MAX_PER_SCOPE = _env_int_optional("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", 32)
+
+conversation_store: InProcessConversationStore | PostgresConversationStore = (
+    InProcessConversationStore(max_turns=_CONVERSATION_MAX_TURNS)
+)
+memory_store: InProcessMemoryStore | PostgresMemoryStore = InProcessMemoryStore(
+    max_per_scope=_MEMORY_MAX_PER_SCOPE
+)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Connect the durable identity map only for the protected runtime."""
+    """Open Postgres pool for identity, consent, conversations and memories."""
 
-    if auth_is_required():
-        database_url = os.environ.get("DATABASE_URL")
-        if database_url:
-            import asyncpg
+    global conversation_store, memory_store
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        import asyncpg
 
-            # SQLAlchemy-style URLs are accepted in the shared env contract.
-            dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
-            pool = await asyncpg.create_pool(dsn)
-            app.state.identity_pool = pool
-            app.state.identity_repository = PostgresIdentityRepository(pool)
+        # SQLAlchemy-style URLs are accepted in the shared env contract.
+        dsn = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        pool = await asyncpg.create_pool(dsn)
+        app.state.db_pool = pool
+        consent_repo = PostgresConsentRepository(pool)
+        app.state.consent_repository = consent_repo
+        app.state.identity_repository = PostgresIdentityRepository(
+            pool, consent_repository=consent_repo
+        )
+        conversation_store = PostgresConversationStore(
+            pool, max_turns=_CONVERSATION_MAX_TURNS
+        )
+        memory_store = PostgresMemoryStore(pool, max_per_scope=_MEMORY_MAX_PER_SCOPE)
     yield
-    pool = getattr(app.state, "identity_pool", None)
+    pool = getattr(app.state, "db_pool", None) or getattr(app.state, "identity_pool", None)
     if pool is not None:
         await pool.close()
 
 
-app = FastAPI(title="RiotQueens API", version="0.4.0", lifespan=lifespan)
+app = FastAPI(title="RiotQueens API", version="0.5.0", lifespan=lifespan)
 
 
 class NoStoreV1Middleware:
@@ -110,35 +153,6 @@ app.add_middleware(NoStoreV1Middleware)
 router = build_router()
 
 
-def _env_int_optional(name: str, default: int) -> int:
-    """Read an int env var, falling back to default on missing/invalid."""
-    raw = os.environ.get(name)
-    if not raw:
-        return default
-    try:
-        value = int(raw)
-    except ValueError:
-        return default
-    return value if value >= 0 else default
-
-
-# ---------------------------------------------------------------------- #
-# In-process conversation & memory stores (Issue #5).
-# ---------------------------------------------------------------------- #
-#
-# These are intentionally in-process prototype state. Server restart
-# clears them. The ConversationStore / MemoryStore Protocols are
-# designed so a future PostgreSQL / Redis backend can replace these
-# implementations without touching the chat handler, the router, or
-# the API surface.
-
-_CONVERSATION_MAX_TURNS = _env_int_optional("RIOTQUEENS_CONVERSATION_MAX_TURNS", 8)
-_MEMORY_MAX_PER_SCOPE = _env_int_optional("RIOTQUEENS_MEMORY_MAX_PER_SCOPE", 32)
-
-conversation_store = InProcessConversationStore(max_turns=_CONVERSATION_MAX_TURNS)
-memory_store = InProcessMemoryStore(max_per_scope=_MEMORY_MAX_PER_SCOPE)
-
-
 def _require_registered_queen(character_id: str) -> None:
     """Reject unknown Queens before allocating scope state or calling a provider."""
 
@@ -162,6 +176,23 @@ def _actor_user_id(principal: Principal | None, browser_user_id: str | None) -> 
     if browser_user_id is None:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return browser_user_id
+
+
+def _require_current_acceptance(principal: Principal | None) -> None:
+    """Fail closed on protected product surfaces without a current clickwrap."""
+
+    if not auth_is_required():
+        return
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if not snapshot_matches_required(principal.acceptance):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "acceptance_required",
+                "message": "Current age gate and legal acceptance are required.",
+            },
+        )
 
 
 _PROVIDER_HTTP_STATUS: dict[type[ProviderError], int] = {
@@ -263,6 +294,7 @@ async def chat(
     server-owned: this public endpoint always uses ``FAST_CHAT``.
     """
     _require_registered_queen(payload.character_id)
+    _require_current_acceptance(principal)
 
     user_id = _actor_user_id(principal, payload.user_id)
     conversation_scope = ConversationScopeKey(
@@ -350,10 +382,9 @@ async def get_conversation(
     scope identifiers echoed back) if the conversation does not exist
     yet — this is graceful for a fresh browser session.
 
-    NOTE: there is no auth in this milestone. `user_id` and
-    `character_id` are prototype scope keys, not secure identities.
     """
     _require_registered_queen(character_id)
+    _require_current_acceptance(principal)
 
     actor_user_id = _actor_user_id(principal, user_id)
     scope = ConversationScopeKey(
@@ -412,6 +443,7 @@ async def delete_conversation(
     ``deleted`` is True iff a conversation existed and was removed.
     """
     _require_registered_queen(payload.character_id)
+    _require_current_acceptance(principal)
 
     scope = ConversationScopeKey(
         user_id=_actor_user_id(principal, payload.user_id),
@@ -439,10 +471,9 @@ async def list_memories(
     character CANNOT see this scope's memories. Returns an empty list
     if no memories exist yet.
 
-    NOTE: there is no auth in this milestone. `user_id` and
-    `character_id` are prototype scope keys, not secure identities.
     """
     _require_registered_queen(character_id)
+    _require_current_acceptance(principal)
 
     actor_user_id = _actor_user_id(principal, user_id)
     scope = MemoryScopeKey(user_id=actor_user_id, character_id=character_id)
@@ -485,6 +516,7 @@ async def create_memory(
     memory is evicted (FIFO).
     """
     _require_registered_queen(payload.character_id)
+    _require_current_acceptance(principal)
 
     scope = MemoryScopeKey(
         user_id=_actor_user_id(principal, payload.user_id),
@@ -516,10 +548,9 @@ async def delete_memory(
     character CANNOT be deleted through this endpoint. Returns 404
     (via `deleted=False`) if the memory id is unknown within the scope.
 
-    NOTE: there is no auth in this milestone. `user_id` and
-    `character_id` are prototype scope keys, not secure identities.
     """
     _require_registered_queen(payload.character_id)
+    _require_current_acceptance(principal)
 
     scope = MemoryScopeKey(
         user_id=_actor_user_id(principal, payload.user_id),
@@ -540,3 +571,106 @@ async def delete_memory(
             },
         )
     return MemoryDeleteResponse(deleted=True, memory_id=memory_id)
+
+
+# ---------------------------------------------------------------------- #
+# Clickwrap consent (ADR 0004)
+# ---------------------------------------------------------------------- #
+
+
+@app.get("/v1/consent/status", response_model=ConsentStatusResponse)
+async def consent_status(
+    principal: Annotated[Principal | None, Depends(require_principal)],
+) -> ConsentStatusResponse:
+    """Return whether the actor holds a current clickwrap package."""
+
+    required = current_acceptance_requirement()
+    if not auth_is_required():
+        return ConsentStatusResponse(
+            accepted=True,
+            required_age_gate_version=required.age_gate_version,
+            required_terms_version=required.terms_version,
+            required_privacy_version=required.privacy_version,
+            current=None,
+        )
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    accepted = snapshot_matches_required(principal.acceptance, required)
+    current = None
+    if principal.acceptance is not None:
+        current = ConsentAcceptRequest(
+            age_confirmed=principal.acceptance.age_confirmed,
+            age_gate_version=principal.acceptance.age_gate_version,
+            terms_version=principal.acceptance.terms_version,
+            privacy_version=principal.acceptance.privacy_version,
+        )
+    return ConsentStatusResponse(
+        accepted=accepted,
+        required_age_gate_version=required.age_gate_version,
+        required_terms_version=required.terms_version,
+        required_privacy_version=required.privacy_version,
+        current=current,
+    )
+
+
+@app.post("/v1/consent/accept", response_model=ConsentAcceptResponse)
+async def consent_accept(
+    payload: ConsentAcceptRequest,
+    principal: Annotated[Principal | None, Depends(require_principal)],
+    request: Request,
+) -> ConsentAcceptResponse:
+    """Record an append-only clickwrap acceptance for the authenticated actor."""
+
+    if not auth_is_required():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "auth_required",
+                "message": "Clickwrap requires the protected runtime.",
+            },
+        )
+    if principal is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    if not payload.age_confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "age_confirmation_required",
+                "message": "Age confirmation is required.",
+            },
+        )
+    repo = getattr(request.app.state, "consent_repository", None)
+    if repo is None:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "consent_unavailable",
+                "message": "Consent store is unavailable.",
+            },
+        )
+    try:
+        record = await repo.record(
+            user_id=principal.user_id,
+            age_confirmed=payload.age_confirmed,
+            age_gate_version=payload.age_gate_version,
+            terms_version=payload.terms_version,
+            privacy_version=payload.privacy_version,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "invalid_acceptance",
+                "message": str(exc),
+            },
+        ) from exc
+    # Refresh in-process principal is request-scoped; next request reloads
+    # acceptance from Postgres via the identity repository.
+    return ConsentAcceptResponse(
+        acceptance_id=record.acceptance_id,
+        accepted_at=record.accepted_at,
+        age_gate_version=record.age_gate_version,
+        terms_version=record.terms_version,
+        privacy_version=record.privacy_version,
+        document_digest=record.document_digest,
+    )

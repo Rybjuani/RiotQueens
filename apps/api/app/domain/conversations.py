@@ -45,6 +45,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 
+import asyncpg
+
 from .contracts import MessageInput
 
 
@@ -508,11 +510,250 @@ def stored_to_message_input(msg: StoredMessage) -> MessageInput:
     return MessageInput(role=msg.role, content=msg.content)
 
 
+class PostgresConversationStore:
+    """PostgreSQL-backed `ConversationStore` with in-process turn locks.
+
+    Durability lives in Postgres. Same-process concurrency still uses the
+    reentrant per-scope lock so a single API worker serializes a turn the
+    same way as the in-process prototype. Multi-replica locking is a later
+    hardening step (advisory locks), not required for the current single-API
+    preprod layout.
+    """
+
+    def __init__(self, pool: asyncpg.Pool, max_turns: int = 8) -> None:
+        if max_turns < 0:
+            raise ValueError("max_turns must be >= 0")
+        self._pool = pool
+        self._max_turns = max_turns
+        self._locks: dict[ConversationScopeKey, _ReentrantAsyncLock] = {}
+
+    def _lock_for(self, scope: ConversationScopeKey) -> _ReentrantAsyncLock:
+        lock = self._locks.get(scope)
+        if lock is None:
+            lock = _ReentrantAsyncLock()
+            self._locks[scope] = lock
+        return lock
+
+    @property
+    def max_turns(self) -> int:
+        return self._max_turns
+
+    @asynccontextmanager
+    async def transaction(self, scope: ConversationScopeKey) -> AsyncIterator[None]:
+        async with self._lock_for(scope):
+            yield
+
+    async def _ensure_conversation(
+        self, connection: asyncpg.Connection, scope: ConversationScopeKey
+    ) -> None:
+        await connection.execute(
+            """
+            INSERT INTO conversations (user_id, character_id, conversation_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, character_id, conversation_id) DO NOTHING
+            """,
+            scope.user_id,
+            scope.character_id,
+            scope.conversation_id,
+        )
+
+    async def _load_messages(
+        self, connection: asyncpg.Connection, scope: ConversationScopeKey
+    ) -> list[StoredMessage]:
+        rows = await connection.fetch(
+            """
+            SELECT id, role, content, created_at
+            FROM conversation_messages
+            WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+            ORDER BY created_at ASC, id ASC
+            """,
+            scope.user_id,
+            scope.character_id,
+            scope.conversation_id,
+        )
+        return [
+            StoredMessage(
+                id=str(row["id"]),
+                role=row["role"],
+                content=row["content"],
+                created_at=row["created_at"],
+            )
+            for row in rows
+        ]
+
+    async def _touch(
+        self, connection: asyncpg.Connection, scope: ConversationScopeKey
+    ) -> None:
+        await connection.execute(
+            """
+            UPDATE conversations
+            SET updated_at = NOW()
+            WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+            """,
+            scope.user_id,
+            scope.character_id,
+            scope.conversation_id,
+        )
+
+    async def _prune(
+        self, connection: asyncpg.Connection, scope: ConversationScopeKey
+    ) -> None:
+        messages = await self._load_messages(connection, scope)
+        bounded = _bound_pairs(messages, self._max_turns)
+        if len(bounded) >= len(messages):
+            return
+        keep_ids = [msg.id for msg in bounded]
+        await connection.execute(
+            """
+            DELETE FROM conversation_messages
+            WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+              AND NOT (id = ANY($4::uuid[]))
+            """,
+            scope.user_id,
+            scope.character_id,
+            scope.conversation_id,
+            keep_ids,
+        )
+
+    async def append_user_message(
+        self, scope: ConversationScopeKey, content: str
+    ) -> StoredMessage:
+        async with self._lock_for(scope):
+            msg_id = uuid.uuid4()
+            created_at = _utcnow()
+            async with self._pool.acquire() as connection, connection.transaction():
+                await self._ensure_conversation(connection, scope)
+                await connection.execute(
+                    """
+                    INSERT INTO conversation_messages (
+                      id, user_id, character_id, conversation_id, role, content, created_at
+                    ) VALUES ($1, $2, $3, $4, 'user', $5, $6)
+                    """,
+                    msg_id,
+                    scope.user_id,
+                    scope.character_id,
+                    scope.conversation_id,
+                    content,
+                    created_at,
+                )
+                await self._touch(connection, scope)
+            return StoredMessage(
+                id=str(msg_id), role="user", content=content, created_at=created_at
+            )
+
+    async def append_assistant_message(
+        self, scope: ConversationScopeKey, content: str
+    ) -> StoredMessage:
+        async with self._lock_for(scope):
+            msg_id = uuid.uuid4()
+            created_at = _utcnow()
+            async with self._pool.acquire() as connection, connection.transaction():
+                await self._ensure_conversation(connection, scope)
+                await connection.execute(
+                    """
+                    INSERT INTO conversation_messages (
+                      id, user_id, character_id, conversation_id, role, content, created_at
+                    ) VALUES ($1, $2, $3, $4, 'assistant', $5, $6)
+                    """,
+                    msg_id,
+                    scope.user_id,
+                    scope.character_id,
+                    scope.conversation_id,
+                    content,
+                    created_at,
+                )
+                await self._prune(connection, scope)
+                await self._touch(connection, scope)
+            return StoredMessage(
+                id=str(msg_id),
+                role="assistant",
+                content=content,
+                created_at=created_at,
+            )
+
+    async def get_history(self, scope: ConversationScopeKey) -> list[StoredMessage]:
+        async with self._lock_for(scope):
+            async with self._pool.acquire() as connection:
+                messages = await self._load_messages(connection, scope)
+            return _bound_pairs(messages, self._max_turns)
+
+    async def get_conversation(
+        self, scope: ConversationScopeKey
+    ) -> ConversationRecord | None:
+        async with self._lock_for(scope):
+            async with self._pool.acquire() as connection:
+                meta = await connection.fetchrow(
+                    """
+                    SELECT created_at, updated_at
+                    FROM conversations
+                    WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+                    """,
+                    scope.user_id,
+                    scope.character_id,
+                    scope.conversation_id,
+                )
+                if meta is None:
+                    return None
+                messages = await self._load_messages(connection, scope)
+            return ConversationRecord(
+                user_id=scope.user_id,
+                character_id=scope.character_id,
+                conversation_id=scope.conversation_id,
+                messages=_bound_pairs(messages, self._max_turns),
+                created_at=meta["created_at"],
+                updated_at=meta["updated_at"],
+            )
+
+    async def delete_conversation(self, scope: ConversationScopeKey) -> bool:
+        async with self._lock_for(scope):
+            async with self._pool.acquire() as connection, connection.transaction():
+                result = await connection.execute(
+                    """
+                    DELETE FROM conversations
+                    WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+                    """,
+                    scope.user_id,
+                    scope.character_id,
+                    scope.conversation_id,
+                )
+            # asyncpg status: "DELETE N"
+            return result.rsplit(" ", 1)[-1] != "0"
+
+    async def pop_last_user_message_if_match(
+        self, scope: ConversationScopeKey, content: str
+    ) -> bool:
+        async with self._lock_for(scope):
+            async with self._pool.acquire() as connection, connection.transaction():
+                row = await connection.fetchrow(
+                    """
+                    SELECT id, role, content
+                    FROM conversation_messages
+                    WHERE user_id = $1 AND character_id = $2 AND conversation_id = $3
+                    ORDER BY created_at DESC, id DESC
+                    LIMIT 1
+                    """,
+                    scope.user_id,
+                    scope.character_id,
+                    scope.conversation_id,
+                )
+                if row is None or row["role"] != "user" or row["content"] != content:
+                    return False
+                await connection.execute(
+                    "DELETE FROM conversation_messages WHERE id = $1",
+                    row["id"],
+                )
+                await self._prune(connection, scope)
+                await self._touch(connection, scope)
+                return True
+
+
 __all__ = [
     "ConversationRecord",
     "ConversationScopeKey",
     "ConversationStore",
     "InProcessConversationStore",
+    "PostgresConversationStore",
     "StoredMessage",
     "stored_to_message_input",
 ]
+

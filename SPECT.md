@@ -267,26 +267,30 @@ Para el análisis de transferencias desde Argentina, Canadá —respecto de su s
 - el roster de universo tiene cinco Queens canónicas, pero sólo `bardera` está implementada; la API rechaza cualquier Queen no registrada antes de crear estado o invocar un proveedor;
 - existe abstracción de proveedor y adaptador OpenAI-compatible;
 - `/v1/chat` conserva la selección de ruta del lado servidor, usa `FAST_CHAT` y no expone los diagnósticos internos del proveedor en su respuesta pública;
-- existen conversación multi-turn y memorias explícitas en proceso;
+- existen conversación multi-turn y memorias explícitas durables en PostgreSQL
+  (migraciones `0002`) cuando hay `DATABASE_URL`; sin DB, in-process para tests;
 - existen locks por scope, errores tipados, retries y pruebas;
-- los scopes públicos son explícitos y acotados; la web genera identificadores aleatorios de usuario prototipo y conversación por pestaña, los conserva en `sessionStorage` y no los presenta como autenticación;
+- los scopes públicos son explícitos y acotados; con auth off la web genera
+  identificadores de pre-auth y conversación por pestaña en `sessionStorage`
+  (nunca como identidad durable); con auth on el actor es el UUID RiotQueens;
 - el chat recupera del servidor el historial visible de esa sesión al abrirse y reconcilia el estado optimista después de cada envío;
 - los endpoints WIP sin consumidor para onboarding, personajes configurables y media mock no forman parte de la API pública;
-- PostgreSQL corre en el Compose de preprod (identidad C3); Redis sigue diferido hasta un caso medido;
+- PostgreSQL corre en el Compose de preprod (identidad C3 + conversación +
+  memoria + clickwrap); Redis sigue diferido hasta un caso medido;
 - Caddy publica web y API bajo un solo origen y enruta `/api/*` hacia FastAPI;
-- C3 implementa la frontera de autenticación: Auth0 CA non-production existe y
-  es IAM externo; el actor se resuelve a un UUID RiotQueens propio antes del
-  dominio. Preprod puede operar con auth desactivada y `user_id` de body hasta
-  usuarios de prueba. Clickwrap versionado todavía no está implementado;
+- C3 implementa la frontera de autenticación: Auth0 CA non-production es IAM
+  externo; el actor se resuelve a un UUID RiotQueens propio. Preprod por IP
+  opera con auth desactivada hasta callbacks de Application + dominio;
+- clickwrap versionado implementado (ADR 0004, migración `0003`, gate con auth);
 - casting de voz Bardera cerrado: primario Gemini 3.1 Flash Lite; fallback lab
   Euryale 70B (OpenRouter); no reabrir Dolphin ni nueva matriz;
-- conversación y memoria se pierden al reiniciar el proceso;
+- frontend Qwen (anti-perfect-gf) transplantado al monorepo Next;
 - no hay todavía storage privado, entitlements, créditos ni pagos implementados;
-- el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
-- las imágenes públicas declaran dimensiones intrínsecas y las que van debajo del primer viewport usan carga diferida;
-- lint y build cubren la web y sus páginas estáticas; el hero vigente fue inspeccionado en Chrome headless a `1440×1200` y `320×900`, mientras el contrato de chat se verifica por transporte ASGI; todavía no existe una suite E2E automatizada del frontend;
+- el logo oficial y assets públicos provisionalmente versionados conservan procedencia;
+- lint y build cubren la web; el contrato de chat se verifica por transporte ASGI;
+  todavía no existe una suite E2E automatizada del frontend;
 - las imágenes provisionales no constituyen entrega premium ni sustituyen autorización de media;
-- Docker Compose y los builds de API y web están validados en el VPS para la release `7448898` en `148.113.167.121`; toda release posterior requiere su propia validación.
+- preprod HTTP en `148.113.167.121` con runtime real; cada release nueva exige su smoke.
 
 No presentar capacidades objetivo como si ya estuvieran implementadas. Un claim de capacidad debe coincidir con la release exacta publicada, no sólo con HEAD, una configuración local o una intención de producto.
 
@@ -386,8 +390,10 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - routing de lanzamiento documentado en ADR 0001;
 - VPS activo y accesible por clave SSH;
 - SSH endurecido, UFW activo y runtime Docker instalado;
-- release `7448898` desplegada en preprod `148.113.167.121` (HTTP por IP);
+- release de diseño Qwen + runtime real (Gemini/Euryale) en preprod
+  `148.113.167.121` (HTTP por IP); ver `RELEASE_SHA` de la release activa;
 - casting de voz Bardera cerrado (Gemini primario / Euryale fallback de lab);
+- persistencia durable de conversación/memoria y clickwrap en código + migraciones;
 - límite de identidad del proveedor y fallback server-owned cubiertos por regresiones;
 - allowlist pública de media con prueba de CI deny-by-default;
 - base frontend/backend y pruebas existentes recuperadas;
@@ -395,14 +401,14 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 
 ### Pendiente
 
-- activar runtime real en preprod (dejar `mode=mock`) y verificar un turno de Bardera;
-- configurar Auth0 de usuarios de prueba y migración de identidad antes del runtime protegido;
-- aprobar jurisdicciones, textos legales versionados, hashes y retención antes de implementar el clickwrap de acceso;
+- **registrar** el dominio `riotqueens.ai` (WHOIS 2026-08-17: disponible) y `A` → VPS;
+- emitir TLS con Caddy y smoke HTTPS;
+- Auth0 Application callbacks + activar runtime protegido en VPS
+  (`RIOTQUEENS_AUTH_ENABLED` / `NEXT_PUBLIC_AUTH_ENABLED`) + smoke login → clickwrap → chat;
+- aprobar jurisdicciones, hashes legales reforzados y retención antes de producción;
 - definir storage/CDN y autorización de media;
 - cerrar pricing, límites, beneficios por tier y economía de créditos;
 - consolidar masters visuales y estado curatorial de assets;
 - implementar y validar la ruta multimodal antes de anunciar visión o recepción de imágenes;
-- configurar el registro DNS y emitir TLS;
 - definir observabilidad y restauración mínima;
-- inventariar `/imagenes` y `FOTOS_FINALES` trabajando sólo con copias;
-- repetir smoke tests sobre el dominio por HTTPS.
+- inventariar `/imagenes` y `FOTOS_FINALES` trabajando sólo con copias.

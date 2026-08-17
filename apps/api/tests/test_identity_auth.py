@@ -10,6 +10,8 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from app.domain.authorization import AcceptanceSnapshot, Principal, ServiceTier
+from app.domain.consent import current_acceptance_requirement
 from app.domain.identity import (
     Auth0JWTVerifier,
     IdentityVerificationError,
@@ -96,6 +98,23 @@ async def test_protected_api_fails_closed_and_ignores_forged_browser_user_id(mon
             return VerifiedExternalIdentity("auth0", "auth0|alice")
 
     main_mod.app.state.auth0_verifier = Verifier()
+    base_repo = InMemoryIdentityRepository()
+    required = current_acceptance_requirement()
+
+    class AcceptedRepo:
+        async def resolve(self, identity: VerifiedExternalIdentity) -> Principal:
+            principal = await base_repo.resolve(identity)
+            return Principal(
+                user_id=principal.user_id,
+                tier=ServiceTier.T0,
+                acceptance=AcceptanceSnapshot(
+                    age_confirmed=True,
+                    age_gate_version=required.age_gate_version,
+                    terms_version=required.terms_version,
+                    privacy_version=required.privacy_version,
+                ),
+            )
+
     main_mod.app.state.identity_repository = InMemoryIdentityRepository()
     transport = httpx.ASGITransport(app=main_mod.app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -104,6 +123,12 @@ async def test_protected_api_fails_closed_and_ignores_forged_browser_user_id(mon
         invalid = await client.post(
             "/v1/chat", headers={"Authorization": "Bearer bad"}, json=payload
         )
+        needs_accept = await client.post(
+            "/v1/chat",
+            headers={"Authorization": "Bearer valid"},
+            json={**payload, "user_id": "victim-user"},
+        )
+        main_mod.app.state.identity_repository = AcceptedRepo()
         forged = await client.post(
             "/v1/chat",
             headers={"Authorization": "Bearer valid"},
@@ -111,6 +136,8 @@ async def test_protected_api_fails_closed_and_ignores_forged_browser_user_id(mon
         )
     assert no_token.status_code == 401
     assert invalid.status_code == 401
+    assert needs_accept.status_code == 403
+    assert needs_accept.json()["detail"]["code"] == "acceptance_required"
     assert forged.status_code == 200
     record = next(iter(main_mod.conversation_store._records.values()))
     assert record.user_id != "victim-user"

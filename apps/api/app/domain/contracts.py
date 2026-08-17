@@ -225,3 +225,40 @@ class ConversationDeleteResponse(BaseModel):
 
     deleted: bool
     conversation_id: str
+
+
+# ---------------------------------------------------------------------- #
+# Clickwrap consent (ADR 0004)
+# ---------------------------------------------------------------------- #
+
+
+class ConsentAcceptRequest(BaseModel):
+    """Client-presented clickwrap confirmations and versions shown."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    age_confirmed: bool
+    age_gate_version: str = Field(min_length=1, max_length=32)
+    terms_version: str = Field(min_length=1, max_length=32)
+    privacy_version: str = Field(min_length=1, max_length=32)
+
+
+class ConsentStatusResponse(BaseModel):
+    """Whether the actor holds a current acceptance for protected access."""
+
+    accepted: bool
+    required_age_gate_version: str
+    required_terms_version: str
+    required_privacy_version: str
+    current: ConsentAcceptRequest | None = None
+
+
+class ConsentAcceptResponse(BaseModel):
+    """Server-stamped acceptance event."""
+
+    acceptance_id: str
+    accepted_at: datetime
+    age_gate_version: str
+    terms_version: str
+    privacy_version: str
+    document_digest: str

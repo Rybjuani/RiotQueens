@@ -39,12 +39,14 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - La Bardera como Queen canónica y única implementada en runtime;
 - experiencia activa T0/free con Bardera, independiente de los tiers T1–T3 todavía no definidos;
 - Queen registrada, routing y contexto validados del lado servidor; `/v1/chat` no acepta una ruta elegida por el cliente ni expone diagnósticos internos del provider;
-- conversación multi-turn y memorias explícitas acotadas en proceso;
-- historial visible recuperado al reabrir el chat para el mismo scope efímero mientras vive el proceso;
+- conversación multi-turn y memorias explícitas **durables en PostgreSQL** cuando
+  hay `DATABASE_URL` (migraciones `0002`); fallback in-process solo sin DB/tests;
+- clickwrap +18 versionado (ADR 0004): UI + `/v1/consent/*` + tabla append-only
+  `0003`; gate de chat con auth habilitada;
 - C3 de identidad no productivo: Auth0 CA sólo como IAM, binding transaccional
   `sub` → UUID RiotQueens propio, JWT fail-closed y browser ID sin autoridad;
-- el tenant Auth0 ya fue creado; queda configurar la aplicación, Custom
-  API/Audience, el único `.env` local y PostgreSQL;
+- tenant Auth0 CA + Custom API audience configurados en `.env` local; preprod HTTP
+  por IP sigue con auth desactivada hasta callbacks de Application + dominio;
 - retries, errores tipados, validación y tests;
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
@@ -103,7 +105,9 @@ Una transcripción externa, export de otro agente o documento histórico sólo s
 
 **Primario de producto (casting cerrado 2026-08-17):** Google AI Studio OpenAI-compatible + `gemini-3.1-flash-lite`.  
 **Fallback de lab:** OpenRouter + `sao10k/l3.3-euryale-70b` (Euryale 70B).  
-No reabrir casting ni promover Dolphin Venice (falla de identidad/dossier). Preprod puede estar en `mock` hasta que `runtime.env` del VPS active el provider real. Multimodalidad y self-host (Gemma/Ollama) siguen en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md) sin promesa pública.
+No reabrir casting ni promover Dolphin Venice (falla de identidad/dossier). Preprod en
+`148.113.167.121` corre `mode=real` con ese par. Multimodalidad y self-host
+(Gemma/Ollama) siguen en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md) sin promesa pública.
 
 ## Repositorio
 
@@ -127,16 +131,20 @@ make lint
 make test
 ```
 
-El Compose de lanzamiento ejecuta `web`, `api` y `caddy`. PostgreSQL y Redis no se levantan todavía porque el dominio no tiene adaptadores que los consuman. El proveedor por defecto es `mock`: no se debe presentar esa respuesta como calidad conversacional final.
+El Compose de lanzamiento ejecuta `postgres`, `web`, `api` y `caddy`. Redis sigue
+opcional. El proveedor por defecto en `.env.example` es `mock`; preprod usa Gemini real.
 
-El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback independiente de Hugging Face se registra con `RIOTQUEENS_FALLBACK_MODEL_*`. Google AI Studio y Ollama usan variables server-side documentadas en `.env.example`; ninguna clave se expone al frontend. El único archivo de configuración local es `.env` en la raíz de este repo, ignorado por Git. Nunca se copia `.env_final(1)` ni una clave real al repo.
+Variables server-side en `.env.example` (`RIOTQUEENS_MODEL_*`, fallback, lab keys).
+Ninguna clave se expone al frontend. El único archivo de configuración local es
+`.env` en la raíz de este repo, ignorado por Git.
 
 ## Próximo objetivo
 
-1. activar runtime real en preprod (`7448898` @ `148.113.167.121`) y verificar un turno de Bardera;
-2. cerrar jurisdicciones, versiones legales y retención antes de producción;
-3. Auth0 para usuarios de prueba + clickwrap y persistencia durable sin cambiar scopes;
-4. configurar DNS/TLS y repetir smoke tests sobre una release identificada;
-5. avanzar con media privada y entitlements sólo después de definir autorización y oferta comercial.
+1. **Registrar** el dominio `riotqueens.ai` (hoy no registrado) y `A` → `148.113.167.121`;
+2. TLS con Caddy (`SITE_ADDRESS=riotqueens.ai`) y smoke HTTPS;
+3. Auth0 Application callbacks para IP/dominio + flip `RIOTQUEENS_AUTH_ENABLED` /
+   `NEXT_PUBLIC_AUTH_ENABLED` en VPS + smoke login → clickwrap → chat;
+4. cerrar jurisdicciones, textos legales reforzados y retención antes de producción;
+5. media privada y entitlements sólo después de autorización y oferta comercial.
 
 Para retomar el trabajo, leer en este orden: `AGENTS.md`, `SPECT.md`, este README, el handoff operativo, `docs/DECISION_REGISTER.md` y el documento específico de la tarea. Cada cambio debe dejar evidencia, pruebas proporcionales y un commit convencional.
