@@ -272,20 +272,21 @@ Para el análisis de transferencias desde Argentina, Canadá —respecto de su s
 - los scopes públicos son explícitos y acotados; la web genera identificadores aleatorios de usuario prototipo y conversación por pestaña, los conserva en `sessionStorage` y no los presenta como autenticación;
 - el chat recupera del servidor el historial visible de esa sesión al abrirse y reconcilia el estado optimista después de cada envío;
 - los endpoints WIP sin consumidor para onboarding, personajes configurables y media mock no forman parte de la API pública;
-- PostgreSQL y Redis son objetivos, pero no se ejecutan hasta que adaptadores reales los consuman;
+- PostgreSQL corre en el Compose de preprod (identidad C3); Redis sigue diferido hasta un caso medido;
 - Caddy publica web y API bajo un solo origen y enruta `/api/*` hacia FastAPI;
 - C3 implementa la frontera de autenticación: Auth0 CA non-production existe y
   es IAM externo; el actor se resuelve a un UUID RiotQueens propio antes del
-  dominio. Falta configurar su Custom API, migrar PostgreSQL y completar vars
-  locales antes de activar usuarios de prueba. Clickwrap versionado todavía no
-  está implementado;
+  dominio. Preprod puede operar con auth desactivada y `user_id` de body hasta
+  usuarios de prueba. Clickwrap versionado todavía no está implementado;
+- casting de voz Bardera cerrado: primario Gemini 3.1 Flash Lite; fallback lab
+  Euryale 70B (OpenRouter); no reabrir Dolphin ni nueva matriz;
 - conversación y memoria se pierden al reiniciar el proceso;
 - no hay todavía storage privado, entitlements, créditos ni pagos implementados;
 - el logo oficial y tres fotos provisionales son copias verificadas con procedencia documentada;
-- las imágenes públicas declaran dimensiones intrínsecas y las que están debajo del primer viewport usan carga diferida;
+- las imágenes públicas declaran dimensiones intrínsecas y las que van debajo del primer viewport usan carga diferida;
 - lint y build cubren la web y sus páginas estáticas; el hero vigente fue inspeccionado en Chrome headless a `1440×1200` y `320×900`, mientras el contrato de chat se verifica por transporte ASGI; todavía no existe una suite E2E automatizada del frontend;
 - las imágenes provisionales no constituyen entrega premium ni sustituyen autorización de media;
-- Docker Compose y los builds de API y web fueron validados en el VPS para la release `570ed7e`; toda release posterior requiere su propia validación.
+- Docker Compose y los builds de API y web están validados en el VPS para la release `7448898` en `148.113.167.121`; toda release posterior requiere su propia validación.
 
 No presentar capacidades objetivo como si ya estuvieran implementadas. Un claim de capacidad debe coincidir con la release exacta publicada, no sólo con HEAD, una configuración local o una intención de producto.
 
@@ -301,7 +302,7 @@ La salida de un proveedor también es no confiable. Antes de almacenarla, el ser
 
 La multimodalidad es un objetivo arquitectónico canónico. El contexto de una Queen puede ser textual y, cuando modelo, runtime e interacción lo justifiquen, incluir adjuntos del usuario o referencias visuales oficiales aprobadas. El servidor selecciona esas referencias sólo cuando son relevantes; no se adjuntan a todos los turnos. Esta decisión no convierte visión o recepción de imágenes en una feature disponible hasta que exista una ruta implementada, validada y publicada.
 
-La selección exacta sigue pendiente. El casting de trabajo considera Llama 3.3 70B para conversación, Llama 4 Maverick para una ruta multimodal futura, Gemini Flash para procesamiento interno o respaldo y Llama 3.1 8B para tareas económicas no visibles. Esta lista no es canon cerrado ni autoriza self-hosting en el VPS CPU.
+**Casting Bardera texto cerrado (2026-08-17):** primario `gemini-3.1-flash-lite` (Google AI Studio OpenAI-compatible); fallback de lab `sao10k/l3.3-euryale-70b` (OpenRouter). No reabrir Dolphin ni matriz de casting. Rutas futuras (multimodal, tareas económicas, otros modelos) no están autorizadas como feature pública ni como self-host en el VPS CPU.
 
 ## 9. Cloud Lab
 
@@ -385,7 +386,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - routing de lanzamiento documentado en ADR 0001;
 - VPS activo y accesible por clave SSH;
 - SSH endurecido, UFW activo y runtime Docker instalado;
-- release `570ed7e` desplegada y smoke tests HTTP por IP superados;
+- release `7448898` desplegada en preprod `148.113.167.121` (HTTP por IP);
+- casting de voz Bardera cerrado (Gemini primario / Euryale fallback de lab);
 - límite de identidad del proveedor y fallback server-owned cubiertos por regresiones;
 - allowlist pública de media con prueba de CI deny-by-default;
 - base frontend/backend y pruebas existentes recuperadas;
@@ -393,8 +395,8 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 
 ### Pendiente
 
-- configurar la Custom API Auth0 y ejecutar la migración de identidad antes de
-  activar el runtime protegido para usuarios de prueba;
+- activar runtime real en preprod (dejar `mode=mock`) y verificar un turno de Bardera;
+- configurar Auth0 de usuarios de prueba y migración de identidad antes del runtime protegido;
 - aprobar jurisdicciones, textos legales versionados, hashes y retención antes de implementar el clickwrap de acceso;
 - definir storage/CDN y autorización de media;
 - cerrar pricing, límites, beneficios por tier y economía de créditos;
@@ -402,6 +404,5 @@ Las decisiones que cambien límites, contratos o arquitectura requieren ADR.
 - implementar y validar la ruta multimodal antes de anunciar visión o recepción de imágenes;
 - configurar el registro DNS y emitir TLS;
 - definir observabilidad y restauración mínima;
-- implementar auth y clickwrap versionado;
 - inventariar `/imagenes` y `FOTOS_FINALES` trabajando sólo con copias;
 - repetir smoke tests sobre el dominio por HTTPS.

@@ -1,18 +1,22 @@
 # RiotQueens — handoff operativo canónico
 
-**Actualizado:** 2026-08-15
+**Actualizado:** 2026-08-17
 **Repositorio canónico:** `/home/rybjuani/Escritorio/RiotQueens-worktree`
 **Fuente funcional:** `SPECT.md` · **decisiones:** `docs/DECISION_REGISTER.md` · **reglas:** `AGENTS.md`
 
 ## Estado actual verificado
 
-- El worktree es el único código, runtime y documentación vigente. El directorio
-  El patrimonio creativo seleccionado está dentro de
-  `assets/private/selected/`; no existe un segundo repo necesario.
+- El worktree es el único código, runtime y documentación vigente. El patrimonio
+  creativo seleccionado está en `assets/private/selected/`; no existe un segundo
+  repo necesario.
 - Las cinco Queens son canónicas; sólo Bardera está implementada en runtime.
-- Bardera texto tiene `TECHNICAL_PRE_RELEASE_PASS` con Gemini 3.1 Flash Lite:
-  12/12 reproducible por API, sin hard-fails, truncaciones ni falsas promesas.
-  Aún no es deploy público ni aprobación para otras Queens/capacidades.
+- **Casting de voz Bardera cerrado** (2026-08-17, glosario): no reabrir matriz ni
+  promover Dolphin Venice (falla de identidad/dossier pese a PASS heurístico).
+- **Primario de producto:** Gemini 3.1 Flash Lite (OpenAI-compatible AI Studio).
+- **Fallback de lab:** Euryale 70B vía OpenRouter (`sao10k/l3.3-euryale-70b`).
+- **Preprod:** release `7448898` en `148.113.167.121` (HTTP por IP). Tras el
+  deploy el status reportó `mode=mock` hasta activar keys reales en
+  `/opt/riotqueens/shared/runtime.env`.
 - Flow y Mage son fuentes externas de producción visual del owner. La biblioteca
   pública actual contiene sólo previews allowlisted y hasheados; no hay media
   privada, uploads, pagos ni generación publicada.
@@ -83,8 +87,9 @@ Los valores secretos jamás se incluyen en Git, handoffs, logs ni chat.
 
 ## Próxima acción operativa única
 
-Completar C3 no productivo: configurar la aplicación existente y crear en Auth0
-la Custom API `RiotQueens API` con
-identifier `https://api.riotqueens.ai`, configurar URLs/orígenes acordados,
-llenar `.env` local sin exponer secretos, ejecutar `0001_identity.sql` sobre
-PostgreSQL y realizar smoke de login/token/API sin desplegar producción.
+Activar el runtime real en preprod (`148.113.167.121`, release `7448898`):
+configurar en `/opt/riotqueens/shared/runtime.env` Gemini 3.1 Flash Lite como
+primario y Euryale 70B (OpenRouter) como fallback, recrear sólo los servicios
+necesarios, y verificar `/api/health`, `/api/v1/runtime/status` (`mode=real`)
+y un turno real de Bardera en `/api/v1/chat`. No DNS, no TLS, no Auth0, no
+reabrir casting.

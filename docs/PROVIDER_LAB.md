@@ -23,7 +23,8 @@ Esto no autoriza a agregar GPU, Ollama o almacenamiento persistente al producto 
 | OpenRouter/Llama | baseline de conversación Bardera | FAIL: 12 turnos, 4 hard-fails | recalibrar prompt/modelo o reemplazar |
 | Hugging Face Router | fallback compatible | INFRA/PERSONALIDAD: HTTP 200 inicial, 5 hard-fails y HTTP 402 en T10 | resolver cuota/pago y repetir batería |
 | Google AI Studio / Gemini 2.5 Flash | comparación | INFRA: 5 turnos sin hard-fail, timeout en T6; RPD agotado | no reintentar hasta nueva cuota |
-| Google AI Studio / Gemini 3.1 Flash Lite | Bardera texto pre-release | `TECHNICAL_PRE_RELEASE_PASS`: 2×12/12 directas y 2×12/12 vía API; p50 2.12 s, p95 5.23 s en la segunda API | aceptación del owner + C7 release identificada; no extrapolar a otra Queen/capacidad |
+| Google AI Studio / Gemini 3.1 Flash Lite | Bardera texto **primario de producto** | casting cerrado 2026-08-17 + PASS glosario; preprod release `7448898` | no reabrir casting; activar en `runtime.env` del VPS si aún aparece `mode=mock` |
+| OpenRouter / Euryale 70B (`sao10k/l3.3-euryale-70b`) | fallback de lab | parcial limpio + 429 OR; promovido a fallback, no a primario | no reabrir matriz; no promover Dolphin Venice |
 | Google AI Studio + Gemma | benchmark alternativo de personalidad | FAIL/INFRA: 10 turnos, 4 hard-fails, HTTP 429 y `<thought>` visible | limitar pensamiento, resolver cuota y repetir |
 | Gemma vía Ollama | laboratorio local de bajo volumen | PROPUESTA | reproducibilidad, VRAM/latencia y benchmark |
 

@@ -49,13 +49,17 @@ Las copias crudas de los landings están registradas por SHA-256 en el SPECT y p
 - flujo landing → chat, tiers, páginas legal/privacidad y responsive verificados localmente;
 - Caddy como entrada única para web y `/api/*`;
 - allowlist SHA-256 que impide incorporar media premium o no registrada a `public/`;
-- primer despliegue HTTP por IP validado en el VPS.
+- preprod HTTP por IP en `148.113.167.121` con release `7448898`;
+- casting de voz Bardera cerrado: primario Gemini 3.1 Flash Lite, fallback lab
+  Euryale 70B (OpenRouter); no reabrir Dolphin ni matriz de casting;
+- al deploy de `7448898` el VPS aún reportaba `mode=mock` hasta activar el
+  runtime real en `runtime.env`.
 
 ### Todavía no implementado
 
 - clickwrap +18 versionado y validado por backend;
-- activar Auth0 para usuarios de prueba: configuración de aplicación, Custom API/Audience, migración de
-  identidad PostgreSQL y secretos locales;
+- Auth0 para usuarios de prueba en preprod/producción (Custom API, migración y
+  secretos del VPS cuando se active el runtime protegido);
 - persistencia durable de conversaciones y memorias;
 - storage privado, CDN y URLs firmadas;
 - entitlements, créditos y pagos;
@@ -97,7 +101,9 @@ Una transcripción externa, export de otro agente o documento histórico sólo s
 
 ## Proveedores y laboratorio
 
-OpenRouter/Llama sigue siendo el proveedor primario configurado del entorno de prueba y Hugging Face es un fallback opcional ya validado en smoke. Google AI Studio (`GEMINI_API_KEY`) queda incorporado al roadmap como proveedor multimodal y de laboratorio; la API respondió en smoke, pero la batería de voz y la ruta multimodal todavía deben aprobarse. La propuesta Gemma + Ollama + llama.cpp se documenta en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md), sin prometer capacidad pública ni commitear credenciales.
+**Primario de producto (casting cerrado 2026-08-17):** Google AI Studio OpenAI-compatible + `gemini-3.1-flash-lite`.  
+**Fallback de lab:** OpenRouter + `sao10k/l3.3-euryale-70b` (Euryale 70B).  
+No reabrir casting ni promover Dolphin Venice (falla de identidad/dossier). Preprod puede estar en `mock` hasta que `runtime.env` del VPS active el provider real. Multimodalidad y self-host (Gemma/Ollama) siguen en [`docs/PROVIDER_LAB.md`](docs/PROVIDER_LAB.md) sin promesa pública.
 
 ## Repositorio
 
@@ -127,9 +133,9 @@ El primario OpenRouter/Llama se configura con `RIOTQUEENS_MODEL_*`. El fallback 
 
 ## Próximo objetivo
 
-1. completar Auth0 CA no productivo y probar login/token/API sin deploy;
+1. activar runtime real en preprod (`7448898` @ `148.113.167.121`) y verificar un turno de Bardera;
 2. cerrar jurisdicciones, versiones legales y retención antes de producción;
-3. implementar clickwrap y persistencia durable sin cambiar scopes;
+3. Auth0 para usuarios de prueba + clickwrap y persistencia durable sin cambiar scopes;
 4. configurar DNS/TLS y repetir smoke tests sobre una release identificada;
 5. avanzar con media privada y entitlements sólo después de definir autorización y oferta comercial.
 
