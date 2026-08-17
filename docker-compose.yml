@@ -5,15 +5,16 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: riotqueens
-      POSTGRES_USER: riotqueens
-      POSTGRES_PASSWORD: riotqueens_dev
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-riotqueens}
+      POSTGRES_USER: ${POSTGRES_USER:-riotqueens}
+      # Required in .env — never hardcode production secrets here.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    # No host port publish: API reaches postgres on the Compose network.
+    # Host admin: docker compose exec postgres psql -U riotqueens -d riotqueens
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U riotqueens -d riotqueens"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -44,8 +45,8 @@ services:
       RIOTQUEENS_AUTH0_ISSUER: ${RIOTQUEENS_AUTH0_ISSUER:-}
       RIOTQUEENS_AUTH0_AUDIENCE: ${RIOTQUEENS_AUTH0_AUDIENCE:-}
       RIOTQUEENS_AUTH0_JWKS_URL: ${RIOTQUEENS_AUTH0_JWKS_URL:-}
-      # In-compose hostname; host tools use localhost via .env DATABASE_URL.
-      DATABASE_URL: postgresql://riotqueens:riotqueens_dev@postgres:5432/riotqueens
+      # In-compose hostname only (not host localhost). Password from .env.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-riotqueens}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-riotqueens}
       RIOTQUEENS_CONVERSATION_MAX_TURNS: ${RIOTQUEENS_CONVERSATION_MAX_TURNS:-8}
       RIOTQUEENS_MEMORY_MAX_PER_SCOPE: ${RIOTQUEENS_MEMORY_MAX_PER_SCOPE:-32}
     expose:
