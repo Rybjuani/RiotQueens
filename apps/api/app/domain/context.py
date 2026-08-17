@@ -8,11 +8,13 @@ provider receives. It composes the request in this STRICT order:
     2. Server-owned memory context (`memories.memory_context_section`)
        — built from scoped explicit user facts, as a SEPARATE system
        block, never mixed into the Queen prompt.
-    3. Bounded conversation history (`conversations.get_history`)
+    3. Server-owned voice exemplars (`queens.get_voice_exemplars`)
+       — few-shot style anchors for the Queen; never stored as history.
+    4. Bounded conversation history (`conversations.get_history`)
        — prior user + assistant turns, scoped by
        (user_id, character_id, conversation_id). Bound by
        `RIOTQUEENS_CONVERSATION_MAX_TURNS` (complete pairs only).
-    4. Current user message (`ChatRequest.message`).
+    5. Current user message (`ChatRequest.message`).
 
 The frontend NEVER sends a system prompt, never sends trusted prior
 messages, never sends trusted memories. The browser only sends the
@@ -47,7 +49,7 @@ from .conversations import (
     stored_to_message_input,
 )
 from .memories import MemoryScopeKey, MemoryStore, memory_context_section
-from .queens import get_system_prompt
+from .queens import get_system_prompt, get_voice_exemplars
 
 
 async def assemble_request_messages(
@@ -66,8 +68,9 @@ async def assemble_request_messages(
       1. Canonical Queen system prompt (server-owned, never stored).
       2. Server-owned memory context (separate system block, only if
          the user has explicit memories).
-      3. Bounded conversation history (prior user/assistant turns).
-      4. Current user message.
+      3. Server-owned voice exemplars (few-shot style; never stored).
+      4. Bounded conversation history (prior user/assistant turns).
+      5. Current user message.
 
     The current user message is appended to the conversation store
     BEFORE this function is called (by the chat handler), so the
@@ -89,7 +92,36 @@ async def assemble_request_messages(
     if memory_section is not None:
         messages.append(MessageInput(role="system", content=memory_section))
 
-    # 3. Bounded conversation history (includes the trailing current
+    # 3. Server-owned voice exemplars (style anchors; not conversation state).
+    # Bracket them so the model does not treat few-shot turns as live history
+    # (e.g. "ya me preguntaste eso" when the user reuses a similar opener).
+    exemplars = get_voice_exemplars(character_id)
+    if exemplars:
+        messages.append(
+            MessageInput(
+                role="system",
+                content=(
+                    "Anclas de estilo de la Queen (ejemplos de voz). "
+                    "NO son mensajes de este usuario, NO son recuerdos del "
+                    "chat actual y NO cuentan como turns previos. Imitá el "
+                    "criterio y la densidad cuando el tema lo pida; no "
+                    "asumas que ya ocurrieron."
+                ),
+            )
+        )
+        messages.extend(exemplars)
+        messages.append(
+            MessageInput(
+                role="system",
+                content=(
+                    "Fin de anclas de estilo. A partir de acá es el chat real "
+                    "con este usuario. Respondé solo al último mensaje user "
+                    "del chat real, con la voz de la Queen."
+                ),
+            )
+        )
+
+    # 4. Bounded conversation history (includes the trailing current
     #    user message that was just appended by the chat handler).
     conversation_scope = ConversationScopeKey(
         user_id=user_id,

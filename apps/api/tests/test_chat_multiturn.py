@@ -5,6 +5,7 @@ receives, so we can verify the canonical context assembly:
 
     system Bardera prompt
     → server-owned memory context (only if memories exist)
+    → server-owned voice exemplars (few-shot style anchors)
     → bounded conversation history (prior user/assistant turns)
     → current user message
 
@@ -22,9 +23,34 @@ import pytest
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
 from app.domain.providers.errors import ProviderContentBlockedError
+from app.domain.queens import BARDERA_VOICE_EXEMPLARS
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
 from tests.asgi_test_client import SyncASGIClient as TestClient
+
+# Server-owned few-shot pairs injected before live conversation history.
+_VOICE_EXEMPLAR_COUNT = len(BARDERA_VOICE_EXEMPLARS)
+
+
+def _live_messages(messages: list) -> list:
+    """Strip system blocks + bracketed voice exemplars; return live tail."""
+
+    # After optional leading system blocks, expect:
+    # [style-open system] + N exemplars + [style-close system] + live...
+    i = 0
+    while i < len(messages) and messages[i].role == "system":
+        # Stop at the style-open marker if present; otherwise pure system prefix.
+        if "Anclas de estilo" in messages[i].content:
+            break
+        i += 1
+    if i < len(messages) and messages[i].role == "system" and "Anclas de estilo" in messages[i].content:
+        i += 1  # style-open
+        i += _VOICE_EXEMPLAR_COUNT
+        if i < len(messages) and messages[i].role == "system":
+            i += 1  # style-close
+        return messages[i:]
+    # No exemplars path.
+    return messages[i:]
 
 # ---------------------------------------------------------------------- #
 # Test fixtures — a capturing MockProvider + a fresh FastAPI app per test
@@ -134,12 +160,17 @@ async def test_A_first_message_provider_receives_system_and_user(fresh_app) -> N
     assert request.route is Route.FAST_CHAT
     msgs = request.messages
     roles = [m.role for m in msgs]
-    # Exactly [system, user] — no prior history, no memory block.
-    assert roles == ["system", "user"]
-    # System prompt is the canonical Queen prompt.
+    # system + voice exemplars (user/assistant pairs) + current user.
+    assert roles[0] == "system"
+    assert roles[-1] == "user"
     assert "Sos La Bardera" in msgs[0].content
-    # User content matches what was sent.
-    assert msgs[1].content == "Hola Bardera, ¿cómo estás?"
+    assert "tema identitario" in msgs[0].content.lower()
+    assert "bardera lavada" in msgs[0].content.lower()
+    # Style samples live inside the system prompt (no fake chat turns).
+    assert "MUESTRAS DE VOZ" in msgs[0].content
+    assert "Manaos" in msgs[0].content
+    assert roles == ["system", "user"]
+    assert msgs[-1].content == "Hola Bardera, ¿cómo estás?"
 
 
 # ---------------------------------------------------------------------- #
@@ -172,17 +203,17 @@ async def test_B_second_message_provider_receives_prior_turn(fresh_app) -> None:
     )
     assert len(capturing.captured_requests) == 2
 
-    # First request: [system, user1]
-    msgs_1 = capturing.captured_requests[0].messages
-    assert [m.role for m in msgs_1] == ["system", "user"]
-    assert msgs_1[1].content == "primer mensaje"
+    # First request live tail: [user1]
+    live_1 = _live_messages(capturing.captured_requests[0].messages)
+    assert [m.role for m in live_1] == ["user"]
+    assert live_1[0].content == "primer mensaje"
 
-    # Second request: [system, user1, assistant1, user2]
-    msgs_2 = capturing.captured_requests[1].messages
-    assert [m.role for m in msgs_2] == ["system", "user", "assistant", "user"]
-    assert msgs_2[1].content == "primer mensaje"
-    assert msgs_2[2].content.startswith("Te leo. Esta es mi respuesta número 1")
-    assert msgs_2[3].content == "segundo mensaje"
+    # Second request live tail: [user1, assistant1, user2]
+    live_2 = _live_messages(capturing.captured_requests[1].messages)
+    assert [m.role for m in live_2] == ["user", "assistant", "user"]
+    assert live_2[0].content == "primer mensaje"
+    assert live_2[1].content.startswith("Te leo. Esta es mi respuesta número 1")
+    assert live_2[2].content == "segundo mensaje"
 
 
 # ---------------------------------------------------------------------- #
@@ -212,9 +243,9 @@ async def test_C_different_conversation_id_isolated(fresh_app) -> None:
         },
     )
     # The second request must NOT contain the first conversation's messages.
-    msgs_2 = capturing.captured_requests[1].messages
-    assert [m.role for m in msgs_2] == ["system", "user"]
-    assert msgs_2[1].content == "conv-2 msg"
+    live_2 = _live_messages(capturing.captured_requests[1].messages)
+    assert [m.role for m in live_2] == ["user"]
+    assert live_2[0].content == "conv-2 msg"
 
 
 # ---------------------------------------------------------------------- #
@@ -477,17 +508,16 @@ async def test_G_bounded_history_keeps_recent_pairs(monkeypatch: pytest.MonkeyPa
     # plus the trailing user5. So the provider sees:
     # [system, user3, a3, user4, a4, user5]
     last_request = capturing.captured_requests[-1]
-    roles = [m.role for m in last_request.messages]
-    contents = [m.content for m in last_request.messages]
-    assert roles == ["system", "user", "assistant", "user", "assistant", "user"]
-    # contents[0] is the Queen system prompt. The rest should be:
-    # [user2, assistant3, user3, assistant4, user4] — i.e. the last 2
-    # complete pairs (2,3) and (3,4) plus the trailing user4.
-    assert contents[1] == "mensaje 2"
-    assert contents[2].startswith("Te leo. Esta es mi respuesta número 3")
-    assert contents[3] == "mensaje 3"
-    assert contents[4].startswith("Te leo. Esta es mi respuesta número 4")
-    assert contents[5] == "mensaje 4"
+    live = _live_messages(last_request.messages)
+    roles = [m.role for m in live]
+    contents = [m.content for m in live]
+    assert roles == ["user", "assistant", "user", "assistant", "user"]
+    # Live tail: last 2 complete pairs + trailing user.
+    assert contents[0] == "mensaje 2"
+    assert contents[1].startswith("Te leo. Esta es mi respuesta número 3")
+    assert contents[2] == "mensaje 3"
+    assert contents[3].startswith("Te leo. Esta es mi respuesta número 4")
+    assert contents[4] == "mensaje 4"
 
 
 # ---------------------------------------------------------------------- #
@@ -685,7 +715,7 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     )
 
     # Send a chat message. The provider should see:
-    # [system (Bardera), system (memory context), user]
+    # [system (Bardera), system (memory context), voice exemplars..., user]
     resp = client.post(
         "/v1/chat",
         json={
@@ -698,7 +728,9 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     assert resp.status_code == 200
     msgs = capturing.captured_requests[0].messages
     roles = [m.role for m in msgs]
-    assert roles == ["system", "system", "user"]
+    assert roles[0] == "system"
+    assert roles[1] == "system"
+    assert roles[-1] == "user"
     # First system message is the Bardera prompt.
     assert "Sos La Bardera" in msgs[0].content
     # Second system message is the protective memory wrapper + JSON data.
@@ -707,8 +739,9 @@ async def test_L_memory_injected_into_provider_request(fresh_app) -> None:
     assert '"type": "user_fact"' in msgs[1].content
     assert '"content": "Mi color favorito es negro."' in msgs[1].content
     assert '"content": "Me gusta el café por la tarde."' in msgs[1].content
-    # User message is the current one.
-    assert msgs[2].content == "hola"
+    live = _live_messages(msgs)
+    assert [m.role for m in live] == ["user"]
+    assert live[0].content == "hola"
 
 
 # ---------------------------------------------------------------------- #
@@ -730,8 +763,12 @@ async def test_M_no_memories_chat_unaffected(fresh_app) -> None:
     )
     assert resp.status_code == 200
     msgs = capturing.captured_requests[0].messages
-    # No memory system block — only [system (Bardera), user].
-    assert [m.role for m in msgs] == ["system", "user"]
+    # No second memory system block; live tail is only the current user.
+    assert msgs[0].role == "system"
+    assert "Sos La Bardera" in msgs[0].content
+    live = _live_messages(msgs)
+    assert [m.role for m in live] == ["user"]
+    assert live[0].content == "hola sin memorias"
     # And the memory section content is NOT present anywhere.
     for m in msgs:
         assert "Memorias explícitas del usuario" not in m.content
@@ -1009,6 +1046,6 @@ async def test_clear_conversation_then_send_starts_fresh(fresh_app) -> None:
     )
     # The last captured request is the "after clear" one.
     last = capturing.captured_requests[-1]
-    roles = [m.role for m in last.messages]
-    assert roles == ["system", "user"]
-    assert last.messages[1].content == "after clear"
+    live = _live_messages(last.messages)
+    assert [m.role for m in live] == ["user"]
+    assert live[0].content == "after clear"

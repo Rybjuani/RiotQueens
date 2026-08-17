@@ -77,15 +77,18 @@ def test_bardera_runtime_contract_contains_ratified_voice_invariants() -> None:
     assert all(
         invariant in prompt
         for invariant in (
-            "timing",
-            "sinceridad",
-            "ingenio",
-            "bardeo afectivo",
+            "criterio propio",
             "aguante",
-            "la confianza y el afecto son progresivos",
-            "ante dolor real",
-            "nunca para humillar",
-            "no sexualices automáticamente",
+            "sinceridad",
+            "timing",
+            "voseo",
+            "tema identitario",
+            "bardera lavada",
+            "soundboard",
+            "siome",
+            "manaos",
+            "muestras de voz",
+            "diluir personalidad",
         )
     )
 

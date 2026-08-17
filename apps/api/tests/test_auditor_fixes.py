@@ -23,9 +23,27 @@ import pytest
 
 from app.domain.contracts import MessageInput, ModelRequest, ModelResponse, Route, Usage
 from app.domain.conversations import ConversationScopeKey, InProcessConversationStore
+from app.domain.queens import BARDERA_VOICE_EXEMPLARS
 from app.domain.router import ModelRouter
 from app.domain.validation import OutputValidator
 from tests.asgi_test_client import SyncASGIClient as TestClient
+
+_VOICE_EXEMPLAR_COUNT = len(BARDERA_VOICE_EXEMPLARS)
+
+
+def _live_messages(messages: list) -> list:
+    i = 0
+    while i < len(messages) and messages[i].role == "system":
+        if "Anclas de estilo" in messages[i].content:
+            break
+        i += 1
+    if i < len(messages) and messages[i].role == "system" and "Anclas de estilo" in messages[i].content:
+        i += 1
+        i += _VOICE_EXEMPLAR_COUNT
+        if i < len(messages) and messages[i].role == "system":
+            i += 1
+        return messages[i:]
+    return messages[i:]
 
 # ---------------------------------------------------------------------- #
 # Test fixtures — a delayed CapturingMockProvider + a fresh FastAPI app
@@ -208,17 +226,17 @@ async def test_forced_overlap_same_scope_serializes_as_complete_pairs() -> None:
     assert contents[1].startswith("Te leo. Esta es mi respuesta número 1")
     assert contents[3].startswith("Te leo. Esta es mi respuesta número 2")
 
-    # Also verify the provider saw the correct context for request B:
-    # it should have seen [system, user1, assistant1, user2] — NOT
-    # [system, user1, user2] (which would mean B appended before A
-    # finished).
+    # Also verify the provider saw the correct live context for request B:
+    # [user1, assistant1, user2] after system + voice exemplars — NOT
+    # [user1, user2] without A's assistant (which would mean B raced ahead).
     b_request = provider.captured_requests[1]
-    b_roles = [m.role for m in b_request.messages]
-    assert b_roles == ["system", "user", "assistant", "user"], (
-        f"Request B should have seen [system, user, assistant, user] but saw {b_roles}"
+    live = _live_messages(b_request.messages)
+    b_roles = [m.role for m in live]
+    assert b_roles == ["user", "assistant", "user"], (
+        f"Request B live tail should be [user, assistant, user] but saw {b_roles}"
     )
-    assert b_request.messages[1].content == "mensaje A primero"
-    assert b_request.messages[3].content == "mensaje B segundo"
+    assert live[0].content == "mensaje A primero"
+    assert live[2].content == "mensaje B segundo"
 
     monkeypatch.undo()
 
@@ -511,8 +529,12 @@ async def test_adversarial_memory_cannot_inject_instructions(fresh_app) -> None:
     msgs = capturing.captured_requests[0].messages
     roles = [m.role for m in msgs]
 
-    # The provider saw: [system (Bardera), system (memory wrapper+data), user]
-    assert roles == ["system", "system", "user"]
+    # Prefix: [system (Bardera), system (memory), voice exemplars..., user]
+    assert roles[0] == "system"
+    assert roles[1] == "system"
+    assert roles[-1] == "user"
+    live = _live_messages(msgs)
+    assert [m.role for m in live] == ["user"]
 
     # The second system message is the protective wrapper + JSON data.
     memory_msg = msgs[1].content

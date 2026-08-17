@@ -1,6 +1,24 @@
 name: riotqueens
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: riotqueens
+      POSTGRES_USER: riotqueens
+      POSTGRES_PASSWORD: riotqueens_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U riotqueens -d riotqueens"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
   api:
     build:
       context: ./apps/api
@@ -13,20 +31,28 @@ services:
       RIOTQUEENS_MODEL_NAME: ${RIOTQUEENS_MODEL_NAME:-riotqueens-chat-v1}
       RIOTQUEENS_MODEL_TIMEOUT_SECONDS: ${RIOTQUEENS_MODEL_TIMEOUT_SECONDS:-5.0}
       RIOTQUEENS_MODEL_MAX_RETRIES: ${RIOTQUEENS_MODEL_MAX_RETRIES:-1}
+      RIOTQUEENS_MODEL_TEMPERATURE: ${RIOTQUEENS_MODEL_TEMPERATURE:-0.9}
+      RIOTQUEENS_MODEL_FREQUENCY_PENALTY: ${RIOTQUEENS_MODEL_FREQUENCY_PENALTY:-0.4}
+      RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY: ${RIOTQUEENS_MODEL_OMIT_FREQUENCY_PENALTY:-false}
       RIOTQUEENS_FALLBACK_MODEL_PROVIDER: ${RIOTQUEENS_FALLBACK_MODEL_PROVIDER:-}
       RIOTQUEENS_FALLBACK_MODEL_BASE_URL: ${RIOTQUEENS_FALLBACK_MODEL_BASE_URL:-}
       RIOTQUEENS_FALLBACK_MODEL_API_KEY: ${RIOTQUEENS_FALLBACK_MODEL_API_KEY:-}
       RIOTQUEENS_FALLBACK_MODEL_NAME: ${RIOTQUEENS_FALLBACK_MODEL_NAME:-}
+      RIOTQUEENS_FALLBACK_MODEL_OMIT_FREQUENCY_PENALTY: ${RIOTQUEENS_FALLBACK_MODEL_OMIT_FREQUENCY_PENALTY:-false}
       RIOTQUEENS_CORS_ORIGINS: ${RIOTQUEENS_CORS_ORIGINS:-http://localhost}
       RIOTQUEENS_AUTH_ENABLED: ${RIOTQUEENS_AUTH_ENABLED:-true}
       RIOTQUEENS_AUTH0_ISSUER: ${RIOTQUEENS_AUTH0_ISSUER:-}
       RIOTQUEENS_AUTH0_AUDIENCE: ${RIOTQUEENS_AUTH0_AUDIENCE:-}
       RIOTQUEENS_AUTH0_JWKS_URL: ${RIOTQUEENS_AUTH0_JWKS_URL:-}
-      DATABASE_URL: ${DATABASE_URL:-}
+      # In-compose hostname; host tools use localhost via .env DATABASE_URL.
+      DATABASE_URL: postgresql://riotqueens:riotqueens_dev@postgres:5432/riotqueens
       RIOTQUEENS_CONVERSATION_MAX_TURNS: ${RIOTQUEENS_CONVERSATION_MAX_TURNS:-8}
       RIOTQUEENS_MEMORY_MAX_PER_SCOPE: ${RIOTQUEENS_MEMORY_MAX_PER_SCOPE:-32}
     expose:
       - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
       interval: 15s
@@ -83,3 +109,4 @@ services:
 volumes:
   caddy_data:
   caddy_config:
+  postgres_data:
