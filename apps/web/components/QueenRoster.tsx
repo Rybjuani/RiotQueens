@@ -1,83 +1,88 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect, useState } from "react";
 
-import { queens, type Queen } from "@/lib/queen";
+import { bardera } from "@/lib/queen";
 
-export function QueenRoster({
-  onStartBardera,
-  onLocked,
-}: {
-  onStartBardera: () => void;
-  onLocked: () => void;
-}) {
+const GALLERY = bardera.slots.slice(0, 4);
+
+export function QueenRoster({ onStartBardera }: { onStartBardera: () => void }) {
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (lightbox === null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setLightbox(null);
+      if (event.key === "ArrowRight") setLightbox((i) => (i === null ? i : (i + 1) % GALLERY.length));
+      if (event.key === "ArrowLeft")
+        setLightbox((i) => (i === null ? i : (i - 1 + GALLERY.length) % GALLERY.length));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
+
   return (
-    <section className="roster" id="queens">
-      <div className="section-heading">
-        <span className="eyebrow cyan">ROSTER / PRESENCIA</span>
-        <h2>
-          CINCO VOCES.
-          <br />
-          <span>CERO MEMORIA COMPARTIDA.</span>
-        </h2>
-        <p>
-          Cada Queen es un personaje aparte: chat, hilo y memoria no se mezclan.
-          DETAILS abre el manual de identidad (deck NotebookLM/Flow). Solo Bardera
-          tiene el primero listo; las otras cuatro ya tienen el slot reservado.
+    <section className="t1" id="bardera">
+      <div className="wrap">
+        <span className="label">DISPONIBLE AHORA · FREE / PREVIEW</span>
+        <h2>LA BARDERA</h2>
+        <p className="label">
+          PUNK / BEER / 0% BUENA ONDA FAKE. La que te caga a pedos pero se queda.
         </p>
-      </div>
 
-      <div className="roster-list">
-        {queens.map((queen) => (
-          <QueenCard
-            key={queen.id}
-            queen={queen}
-            onStart={queen.chatEnabled ? onStartBardera : onLocked}
-          />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function QueenCard({ queen, onStart }: { queen: Queen; onStart: () => void }) {
-  const live = queen.status === "live";
-  const profileReady = queen.profile.status === "ready";
-  return (
-    <article className={live ? "queen-card live" : "queen-card"} id={`queen-${queen.id}`}>
-      <header className="queen-card-head">
-        <div>
-          <span className="eyebrow">{live ? "BETA ACTIVA" : "EN CURACIÓN"}</span>
-          <h3>{queen.name}</h3>
-          <p>{queen.tagline}</p>
+        <div className="grid4" aria-label="Galería de La Bardera">
+          {GALLERY.map((slot, index) => (
+            <button
+              type="button"
+              className="ph"
+              key={slot.src}
+              onClick={() => setLightbox(index)}
+              aria-label={`Ampliar: ${slot.alt}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={slot.src}
+                alt={slot.alt}
+                width={slot.width}
+                height={slot.height}
+                loading="lazy"
+                decoding="async"
+              />
+            </button>
+          ))}
         </div>
-        <div className="queen-card-actions">
-          <Link className="button-ghost queen-link" href={`/queen/${queen.id}`}>
-            {profileReady ? "DETAILS →" : "PROFILE SLOT"}
-          </Link>
-          <button className={live ? "button-primary" : "button-ghost"} onClick={onStart}>
-            {live ? "HABLÁ CON ELLA →" : "PRONTO"}
+
+        <p className="t1-badge">FREE / PREVIEW</p>
+        <p className="t1-features">
+          ✦ Te bardea pero con amor &nbsp;✦ Roleplay de bar a las 3am &nbsp;✦ No te
+          ghostea jamás
+        </p>
+        <button type="button" className="btn solid" onClick={onStartBardera}>
+          HABLÁ CON LA BARDERA →
+        </button>
+      </div>
+
+      {lightbox !== null && (
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Vista ampliada"
+          onMouseDown={() => setLightbox(null)}
+        >
+          <button type="button" className="x" aria-label="Cerrar" onClick={() => setLightbox(null)}>
+            ×
           </button>
-        </div>
-      </header>
-      <div className="queen-slots" aria-label={`Previews de ${queen.name}`}>
-        {queen.slots.map((imageSlot) => (
-          // eslint-disable-next-line @next/next/no-img-element
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            key={imageSlot.src}
-            src={imageSlot.src}
-            alt={imageSlot.alt}
-            width={imageSlot.width}
-            height={imageSlot.height}
-            loading="lazy"
-            decoding="async"
+            src={GALLERY[lightbox].src}
+            alt={GALLERY[lightbox].alt}
+            width={GALLERY[lightbox].width}
+            height={GALLERY[lightbox].height}
+            onMouseDown={(event) => event.stopPropagation()}
           />
-        ))}
-      </div>
-      <p className="queen-card-note">
-        {queen.slots.length} preview{queen.slots.length === 1 ? "" : "s"} · perfil{" "}
-        {profileReady ? "listo" : "slot vacío"} · memoria aislada · orden provisional
-      </p>
-    </article>
+        </div>
+      )}
+    </section>
   );
 }

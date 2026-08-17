@@ -12,7 +12,15 @@ import { TierGrid } from "@/components/TierGrid";
 
 type ModalKind = "how" | "locked" | null;
 
-function InfoModal({ kind, onClose, onStart }: { kind: ModalKind; onClose: () => void; onStart: () => void }) {
+function InfoModal({
+  kind,
+  onClose,
+  onStart,
+}: {
+  kind: ModalKind;
+  onClose: () => void;
+  onStart: () => void;
+}) {
   useEffect(() => {
     if (!kind) return;
     const onKeyDown = (event: KeyboardEvent) => event.key === "Escape" && onClose();
@@ -32,16 +40,25 @@ function InfoModal({ kind, onClose, onStart }: { kind: ModalKind; onClose: () =>
         aria-labelledby="modal-title"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <span className="eyebrow">{locked ? "EN CURACIÓN" : "CÓMO FUNCIONA"}</span>
-        <h2 id="modal-title">{locked ? "Todavía no sale al escenario." : "Entrás. Hablás. Ella continúa."}</h2>
+        <button type="button" className="x" onClick={onClose} aria-label="Cerrar">
+          ×
+        </button>
+        <span className="label">{locked ? "EN CURACIÓN" : "CÓMO FUNCIONA"}</span>
+        <h2 id="modal-title">
+          {locked ? "Todavía no, pibe." : "Entrás. Hablás. Ella continúa."}
+        </h2>
         <p>
           {locked
-            ? "T1, T2 y T3 siguen en definición. Sus precios, límites y beneficios se publicarán sólo cuando estén aprobados e implementados."
-            : "La beta conecta el landing con el chat real del backend. El backend mantiene un hilo acotado mientras el proceso sigue activo; no es memoria durable."}
+            ? "Están en el backstage tomando fernet y cagándose de risa de tu bio de Tinder. Pronto."
+            : "Elegís a La Bardera, abrís el chat y arrancás. Sin setup técnico. Sin catálogo infinito."}
         </p>
         <div className="modal-actions">
-          <button className="button-primary" onClick={onStart}>{locked ? "VOLVER A LA BETA" : "HABLÁ CON LA BARDERA"}</button>
-          <button className="button-ghost" onClick={onClose}>CERRAR</button>
+          <button type="button" className="btn solid" onClick={onStart}>
+            {locked ? "VOLVER A LA BARDERA" : "HABLÁ CON LA BARDERA →"}
+          </button>
+          <button type="button" className="btn" onClick={onClose}>
+            CERRAR
+          </button>
         </div>
       </section>
     </div>
@@ -59,7 +76,10 @@ export default function Home() {
     }
     setModal(null);
     setChatOpen(true);
-    window.setTimeout(() => document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }), 60);
+    window.setTimeout(
+      () => document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }),
+      60,
+    );
   };
 
   return (
@@ -67,17 +87,36 @@ export default function Home() {
       <Navbar onCta={startChat} />
       <main>
         <Hero onStart={startChat} onHow={() => setModal("how")} />
-        <div className="signal-strip" aria-label="Principios de RiotQueens">
-          <div>✦ TE BARDEA ✦ TE QUIERE ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦ COMPLEJIDAD ESCONDIDA ✦</div>
+        <div className="marquee" aria-hidden>
+          <span>
+            ✦ NO ES TU TERAPEUTA ✦ TE CONTESTA DE VERDAD ✦ NO TE GHOSTEA ✦ TE BARDEA CON
+            AMOR ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦ NO ES TU TERAPEUTA ✦ TE CONTESTA DE
+            VERDAD ✦ NO TE GHOSTEA ✦ TE BARDEA CON AMOR ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦
+            &nbsp;
+          </span>
         </div>
-        <Experience onStart={startChat} />
-        <QueenRoster onStartBardera={startChat} onLocked={() => setModal("locked")} />
+        <Experience />
+        <QueenRoster onStartBardera={startChat} />
         <TierGrid onStart={startChat} onLocked={() => setModal("locked")} />
+        <div className="etica">
+          ⚠ PERSONAJES VIRTUALES · +18 · FANTASÍA SIMULADA · QUEEN AL FRENTE
+        </div>
         {chatOpen && <ChatPanel />}
-        <section className="final-cta" id="join">
-          <span className="eyebrow">ACCESO FREE / BETA</span>
-          <h2>NO ES UNA GALERÍA.<br /><span>ESTÁ AHÍ.</span></h2>
-          <button className="button-primary" onClick={startChat}>HABLÁ CON LA BARDERA →</button>
+        <section className="final" id="join">
+          <div className="wrap">
+            <h2 className="glitch">
+              NO SOMOS TU GIRLFRIEND PERFECTA —
+              <br />
+              SOMOS EL PROBLEMA QUE QUERÉS TENER —
+            </h2>
+            <p className="lead">
+              LAS QUE SE HACEN LAS SANTITAS TE CLAVAN EL VISTO. NOSOTRAS NOS QUEDAMOS
+              IGUAL, BOBO.
+            </p>
+            <button type="button" className="btn solid" onClick={startChat}>
+              VOY CON LA BARDERA →
+            </button>
+          </div>
         </section>
       </main>
       <Footer />

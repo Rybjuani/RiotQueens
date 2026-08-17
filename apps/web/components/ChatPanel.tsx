@@ -27,14 +27,17 @@ export function ChatPanel() {
     setHydrating(true);
     setError(null);
     try {
-      const summary: ConversationSummary = await getConversation({ character_id: bardera.id, signal });
+      const summary: ConversationSummary = await getConversation({
+        character_id: bardera.id,
+        signal,
+      });
       if (signal?.aborted) return;
       setMessages(summary.messages.map(({ role, content }) => ({ role, content })));
       setConversationReady(true);
     } catch {
       if (!signal?.aborted) {
         setConversationReady(false);
-        setError("No se pudo recuperar esta sesión. Reintentá antes de seguir.");
+        setError("No se pudo abrir el chat. Reintentá en un momento.");
       }
     } finally {
       if (!signal?.aborted) setHydrating(false);
@@ -53,7 +56,9 @@ export function ChatPanel() {
 
   const send = async (text?: string) => {
     const content = (text ?? input).trim();
-    if (!content || loading || hydrating || !conversationReady || requestInFlightRef.current) return;
+    if (!content || loading || hydrating || !conversationReady || requestInFlightRef.current) {
+      return;
+    }
     if (content.length > CHAT_MESSAGE_MAX_LENGTH) {
       setError(`El mensaje puede tener hasta ${CHAT_MESSAGE_MAX_LENGTH} caracteres.`);
       return;
@@ -74,21 +79,26 @@ export function ChatPanel() {
       setMessages(completedMessages);
       try {
         const summary = await getConversation({ character_id: bardera.id });
-        setMessages(summary.messages.map(({ role, content: storedContent }) => ({ role, content: storedContent })));
+        setMessages(
+          summary.messages.map(({ role, content: storedContent }) => ({
+            role,
+            content: storedContent,
+          })),
+        );
       } catch {
         setConversationReady(false);
-        setError("La respuesta llegó, pero no se pudo confirmar el hilo completo. Reintentá la sesión antes de seguir.");
+        setError("La respuesta llegó, pero no se pudo confirmar el hilo. Reintentá.");
       }
     } catch {
       try {
         const summary = await getConversation({ character_id: bardera.id });
         setMessages(summary.messages.map(({ role, content: storedContent }) => ({ role, content: storedContent })));
         setConversationReady(true);
-        setError("No se pudo confirmar el envío. El hilo visible se sincronizó con el servidor.");
+        setError("No se pudo confirmar el envío. El hilo se sincronizó.");
       } catch {
         setMessages(previousMessages);
         setConversationReady(false);
-        setError("No se pudo confirmar el envío ni recuperar el hilo. Reintentá la sesión antes de seguir.");
+        setError("No se pudo enviar. Reintentá en un momento.");
       }
     } finally {
       requestInFlightRef.current = false;
@@ -109,11 +119,11 @@ export function ChatPanel() {
         const summary = await getConversation({ character_id: bardera.id });
         setMessages(summary.messages.map(({ role, content }) => ({ role, content })));
         setConversationReady(true);
-        setError("No se pudo confirmar el reinicio. El hilo visible se sincronizó con el servidor.");
+        setError("No se pudo reiniciar. El hilo se sincronizó.");
       } catch {
         setMessages(previousMessages);
         setConversationReady(false);
-        setError("No se pudo confirmar el reinicio ni recuperar el hilo. Reintentá la sesión antes de seguir.");
+        setError("No se pudo reiniciar. Reintentá en un momento.");
       }
     } finally {
       requestInFlightRef.current = false;
@@ -122,41 +132,124 @@ export function ChatPanel() {
 
   return (
     <section className="chat-section" id="chat">
-      <div className="chat-heading">
-        <span className="eyebrow cyan">BETA ABIERTA</span>
-        <h2>HABLÁ CON<br /><span>LA BARDERA.</span></h2>
-        <p>Entrá directo. La configuración fina puede esperar.</p>
-      </div>
-      <div className="chat-layout">
-        <aside className="chat-presence">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={bardera.portrait} alt="La Bardera" width={1600} height={893} loading="lazy" decoding="async" />
-          <div className="presence-label"><i /><b>BETA ABIERTA</b><span>PREVIEW PÚBLICO</span></div>
-          <p>{bardera.tagline}</p>
-        </aside>
-        <div className="chat-window">
-          <header><div><b>{bardera.name}</b><span>{hydrating ? "RECUPERANDO" : conversationReady ? "SEÑAL LISTA" : "SIN CONEXIÓN"}</span></div><button onClick={clear} disabled={loading || hydrating || !conversationReady}>REINICIAR</button></header>
-          <div className="chat-messages" ref={scrollRef} aria-live="polite" aria-busy={hydrating || loading}>
-            {hydrating && <p className="chat-empty">SISTEMA · Recuperando esta sesión…</p>}
-            {!hydrating && conversationReady && messages.length === 0 && <p className="chat-empty">SISTEMA · La conversación empieza cuando enviás el primer mensaje.</p>}
-            {messages.map((message, index) => <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>{message.content}</div>)}
-            {loading && <div className="typing" aria-label="Escribiendo"><span /><span /><span /></div>}
-          </div>
-          {messages.length === 0 && !loading && !hydrating && conversationReady && <div className="quick-prompts">{bardera.quickPrompts.map((prompt) => <button key={prompt} onClick={() => send(prompt)}>{prompt}</button>)}</div>}
-          <div className="composer">
-            <input
-              aria-label="Mensaje"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && send()}
-              placeholder="Escribile algo..."
-              maxLength={CHAT_MESSAGE_MAX_LENGTH}
-              disabled={loading || hydrating || !conversationReady}
+      <div className="wrap">
+        <span className="label">CHAT · LA BARDERA</span>
+        <h2>
+          HABLÁ CON
+          <br />
+          LA BARDERA
+        </h2>
+        <p style={{ color: "var(--plata)", marginTop: 8 }}>
+          Te bardea, te quiere, se queda. 100% virtual, +18.
+        </p>
+
+        <div className="chat-layout">
+          <aside className="chat-presence">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={bardera.portrait}
+              alt="La Bardera"
+              width={1600}
+              height={893}
+              loading="lazy"
+              decoding="async"
             />
-            <button onClick={() => send()} disabled={loading || hydrating || !conversationReady || !input.trim()}>ENVIAR →</button>
+            <div className="meta">
+              <span className="label">
+                <i className="live-dot" aria-hidden />
+                ONLINE
+              </span>
+              <p>{bardera.tagline}</p>
+            </div>
+          </aside>
+
+          <div className="chat-window">
+            <header>
+              <div>
+                <b>{bardera.name}</b>
+                <span>
+                  {hydrating ? "ABRIENDO" : conversationReady ? "LISTA" : "SIN SEÑAL"}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn"
+                onClick={clear}
+                disabled={loading || hydrating || !conversationReady}
+              >
+                REINICIAR
+              </button>
+            </header>
+
+            <div
+              className="chat-messages"
+              ref={scrollRef}
+              aria-live="polite"
+              aria-busy={hydrating || loading}
+            >
+              {hydrating && <p className="chat-empty">Abriendo el chat…</p>}
+              {!hydrating && conversationReady && messages.length === 0 && (
+                <p className="chat-empty">Escribile algo. Ella arranca cuando vos mandás.</p>
+              )}
+              {messages.map((message, index) => (
+                <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>
+                  {message.content}
+                </div>
+              ))}
+              {loading && (
+                <div className="typing" aria-label="Escribiendo">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              )}
+            </div>
+
+            {messages.length === 0 && !loading && !hydrating && conversationReady && (
+              <div className="quick-prompts">
+                {bardera.quickPrompts.map((prompt) => (
+                  <button type="button" key={prompt} onClick={() => void send(prompt)}>
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="composer">
+              <input
+                aria-label="Mensaje"
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => event.key === "Enter" && void send()}
+                placeholder="Escribile algo..."
+                maxLength={CHAT_MESSAGE_MAX_LENGTH}
+                disabled={loading || hydrating || !conversationReady}
+              />
+              <button
+                type="button"
+                className="btn solid"
+                onClick={() => void send()}
+                disabled={loading || hydrating || !conversationReady || !input.trim()}
+              >
+                ENVIAR →
+              </button>
+            </div>
+
+            {error && (
+              <p className="chat-error" role="status">
+                {error}
+              </p>
+            )}
+            {!hydrating && !conversationReady && (
+              <button
+                type="button"
+                className="chat-retry"
+                onClick={() => void hydrateConversation()}
+              >
+                REINTENTAR
+              </button>
+            )}
           </div>
-          {error && <p className="chat-error" role="status">SISTEMA · {error}</p>}
-          {!hydrating && !conversationReady && <button className="chat-retry" onClick={() => void hydrateConversation()}>REINTENTAR SESIÓN</button>}
         </div>
       </div>
     </section>

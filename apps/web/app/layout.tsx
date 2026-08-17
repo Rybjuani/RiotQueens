@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "RiotQueens.ai — Queen al frente",
-  description: "Experiencia de entretenimiento +18 con personajes virtuales y ficticios que interactúan mediante IA.",
+  title: "RiotQueens.ai — ANTI-PERFECT-GF / BETA",
+  description:
+    "No te clava el visto. Te bardea, te quiere, se queda. Experiencia +18 con personajes virtuales y ficticios.",
 };
 
 export default function RootLayout({

@@ -14,88 +14,57 @@ export default function QueenProfilePage({ params }: { params: { id: string } })
   if (!queen) notFound();
 
   const ready = queen.profile.status === "ready";
-  const readyCount = queen.profile.slides.filter((s) => s.state === "ready").length;
-  const slotCount = queen.profile.slides.filter((s) => s.state === "slot").length;
+  const readySlides = queen.profile.slides.filter((slide) => slide.state === "ready");
 
   return (
-    <div className="site-shell profile-shell">
-      <header className="profile-top">
-        <Link href="/#queens" className="profile-back">
-          ← ROSTER
+    <div className="queen-page">
+      <Link href="/#tiers">← VOLVER</Link>
+      <span className="label" style={{ display: "block", marginTop: 18 }}>
+        {queen.status === "live" ? "DISPONIBLE" : "EN CURACIÓN"}
+      </span>
+      <h1>{queen.name}</h1>
+      <p className="lead">{queen.tagline}</p>
+      <div className="actions">
+        {queen.chatEnabled ? (
+          <Link className="btn solid" href="/#chat">
+            HABLÁ CON ELLA →
+          </Link>
+        ) : (
+          <span className="btn" style={{ opacity: 0.5 }}>
+            PRONTO
+          </span>
+        )}
+        <Link className="btn" href="/#bardera">
+          VER A LA BARDERA
         </Link>
-        <span className="eyebrow cyan">
-          {ready ? "IDENTITY DECK" : "PROFILE SLOT · RESERVADO"}
-        </span>
-      </header>
+      </div>
 
-      <main className="profile-main">
-        <section className="profile-hero">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={queen.portrait}
-            alt={queen.name}
-            width={900}
-            height={1200}
-            className="profile-portrait"
-          />
-          <div className="profile-hero-copy">
-            <span className="eyebrow">{queen.status === "live" ? "BETA ACTIVA" : "EN CURACIÓN"}</span>
-            <h1>{queen.name}</h1>
-            <p className="profile-tagline">{queen.tagline}</p>
-            <p className="profile-sub">{queen.profile.subtitle}</p>
-            <div className="profile-actions">
-              {queen.chatEnabled ? (
-                <Link className="button-primary" href="/#chat">
-                  HABLÁ CON ELLA →
-                </Link>
-              ) : (
-                <span className="button-ghost profile-disabled">CHAT PRONTO</span>
-              )}
-              <Link className="button-ghost" href="/#queens">
-                VER ROSTER
-              </Link>
-            </div>
-            <p className="queen-card-note">
-              {readyCount} slides listos · {slotCount} slots vacíos · memoria no compartida con
-              otras Queens · deck ≠ system prompt
-            </p>
-          </div>
-        </section>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={queen.portrait}
+        alt={queen.name}
+        width={900}
+        height={1200}
+        style={{ maxWidth: 360, width: "100%", border: "1px solid #333", marginTop: 12 }}
+      />
 
-        <section className="profile-deck" aria-label={`Deck de ${queen.name}`}>
-          <div className="section-heading compact">
-            <span className="eyebrow cyan">{queen.profile.label}</span>
-            <h2>
-              {ready ? "MANUAL DE IDENTIDAD." : "SLOT LISTO."}
-              <br />
-              <span>{ready ? "ONCE CAPAS." : "ESPERANDO NOTEBOOKLM / FLOW."}</span>
-            </h2>
-          </div>
-
-          <div className="deck-grid">
-            {queen.profile.slides.map((slide) => (
-              <article
-                key={`${queen.id}-${slide.n}`}
-                className={slide.state === "ready" ? "deck-card ready" : "deck-card slot"}
-              >
-                <div className="deck-card-top">
-                  <strong>{String(slide.n).padStart(2, "0")}</strong>
-                  <span>{slide.state === "ready" ? "READY" : "SLOT"}</span>
-                </div>
-                <h3>{slide.title}</h3>
-                {slide.body ? (
-                  <p>{slide.body}</p>
-                ) : (
-                  <p className="deck-empty">
-                    Reservado. Exportá el deck desde NotebookLM / Flow y lo enchufamos acá sin
-                    tocar el chat ni la memoria de otra Queen.
-                  </p>
-                )}
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
+      <div className="deck" aria-label={`Presencia de ${queen.name}`}>
+        {ready ? (
+          readySlides.map((slide) => (
+            <article className="slide" key={`${queen.id}-${slide.n}`}>
+              <h3>
+                {String(slide.n).padStart(2, "0")} · {slide.title}
+              </h3>
+              {slide.body ? <p>{slide.body}</p> : null}
+            </article>
+          ))
+        ) : (
+          <article className="slide slot">
+            <h3>EN CURACIÓN</h3>
+            <p>Esta Queen es canónica. Su chat se abre cuando esté lista.</p>
+          </article>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,3 +1,25 @@
 export default function PrivacyPage() {
-  return <main className="policy-page"><a href="/">← VOLVER</a><span className="eyebrow">PRIVACIDAD / BETA</span><h1>Estado actual</h1><p>Esta beta no tiene cuentas ni identidad autenticada. El backend mantiene un hilo acotado en el proceso y lo pierde al reiniciarse; no es memoria durable.</p><p>El navegador genera dos identificadores aleatorios de prototipo —usuario y conversación— y los guarda en <code>sessionStorage</code> durante la sesión de la pestaña. El backend los usa para separar ese estado temporal; son datos controlados por el cliente y no autentican identidad.</p><p>Los mensajes pueden enviarse al proveedor de modelo configurado por el backend. No compartas información personal o sensible durante esta etapa de prueba.</p></main>;
+  return (
+    <main className="policy-page">
+      <a href="/">← VOLVER</a>
+      <span className="label" style={{ display: "block", marginTop: 18 }}>
+        PRIVACIDAD
+      </span>
+      <h1>Privacidad</h1>
+      <p>
+        RiotQueens.ai es una experiencia +18 de personajes virtuales ficticios. Usá la
+        plataforma sin compartir datos personales o sensibles en el chat.
+      </p>
+      <p>
+        Esta versión free/preview no publica un panel de cuenta ni ventas activas. La
+        política de privacidad completa se actualizará cuando se habiliten cuentas,
+        pagos u otras funciones que lo requieran.
+      </p>
+      <p>
+        Las respuestas del chat se generan para sostener la conversación con la Queen.
+        No uses el servicio para información que no quieras que se procese en ese
+        contexto.
+      </p>
+    </main>
+  );
 }

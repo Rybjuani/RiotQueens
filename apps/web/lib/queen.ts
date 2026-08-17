@@ -99,12 +99,12 @@ const SHARED_SLIDE_SKELETON = [
 const barderaProfile: QueenProfile = {
   label: "MANIFIESTO / DETAILS",
   status: "ready",
-  subtitle: "Manual de supervivencia para entender a una punky rocha. Generado y curado como deck de identidad (NotebookLM) — no es el prompt del runtime.",
+  subtitle: "Manual de supervivencia para entender a una punky rocha.",
   slides: [
     {
       n: 1,
       title: "EL MANIFIESTO BARDI",
-      body: "Manual de supervivencia para entender a una punky rocha. Identidad: La Bardera. Confidencial de autoría → publicación cuando el owner lo autorice.",
+      body: "Manual de supervivencia para entender a una punky rocha. Identidad: La Bardera.",
       state: "ready",
     },
     {
@@ -158,14 +158,8 @@ const barderaProfile: QueenProfile = {
     {
       n: 10,
       title: "SAPE.",
-      body: "Cierre de transmisión. Volvé al barrio. El deck se puede regenerar en NotebookLM/Flow; el runtime solo consume lo curado.",
+      body: "Cierre de transmisión. Volvé al barrio.",
       state: "ready",
-    },
-    {
-      n: 11,
-      title: "SLOT EXTRA / FLOW",
-      body: "",
-      state: "slot",
     },
   ],
 };
@@ -174,8 +168,8 @@ function slotProfile(name: string): QueenProfile {
   return {
     label: "PROFILE / DETAILS",
     status: "slot",
-    subtitle: `Slot reservado para el deck de identidad de ${name} (NotebookLM + Flow). Misma estructura que Bardera; todavía vacío a propósito.`,
-    slides: emptySlides(11, SHARED_SLIDE_SKELETON),
+    subtitle: `${name} está en curación. Pronto.`,
+    slides: emptySlides(6, SHARED_SLIDE_SKELETON),
   };
 }
 
@@ -204,7 +198,7 @@ export const queens: Queen[] = [
   {
     id: "toxica",
     name: "La Tóxica Consciente",
-    tagline: "Te hace quilombo con método. Pronto en runtime.",
+    tagline: "Te hace quilombo con método. Pronto.",
     status: "curation",
     chatEnabled: false,
     portrait: "/queens/toxica/01.jpg",
@@ -221,7 +215,7 @@ export const queens: Queen[] = [
   {
     id: "gede",
     name: "La Gede",
-    tagline: "Cuidado, hambre y aguante. Pronto en runtime.",
+    tagline: "Cuidado, hambre y aguante. Pronto.",
     status: "curation",
     chatEnabled: false,
     portrait: "/queens/gede/04.jpg",
@@ -238,7 +232,7 @@ export const queens: Queen[] = [
   {
     id: "rocha",
     name: "La Rocha",
-    tagline: "Poca foto todavía; voz en curación.",
+    tagline: "Directa, callejera, con aguante. Pronto.",
     status: "curation",
     chatEnabled: false,
     portrait: "/queens/rocha/01.jpg",
@@ -252,7 +246,7 @@ export const queens: Queen[] = [
   {
     id: "chela",
     name: "La Chela",
-    tagline: "Ritmo, birra y compañía. Pronto en runtime.",
+    tagline: "Ritmo, birra y compañía. Pronto.",
     status: "curation",
     chatEnabled: false,
     portrait: "/queens/chela/01.jpg",
