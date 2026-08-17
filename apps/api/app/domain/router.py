@@ -8,14 +8,12 @@ from .contracts import ModelRequest, ModelResponse, Route, Usage
 from .providers.errors import (
     ProviderContentBlockedError,
     ProviderError,
+    ProviderInvalidResponseError,
     ProviderNonRetryableError,
     ProviderRetryableError,
     ProviderTimeoutError,
 )
-from .queens import get_continuity_fallback
 from .validation import OutputValidator
-
-SAFE_FALLBACK_CONTENT = get_continuity_fallback("bardera")
 
 
 class ModelProvider(Protocol):
@@ -63,9 +61,7 @@ class ModelRouter:
 
     async def generate(self, request: ModelRequest) -> ModelResponse:
         started = perf_counter()
-        last_response: ModelResponse | None = None
         last_error: ProviderError | None = None
-        content_was_blocked = False
         attempts = 0
         providers = (
             self.providers[request.route],
@@ -80,7 +76,6 @@ class ModelRouter:
                         provider.generate(request), timeout=self.timeout_seconds
                     )
                 except ProviderContentBlockedError as error:
-                    content_was_blocked = True
                     last_error = error
                     break
                 except ProviderNonRetryableError as error:
@@ -105,25 +100,22 @@ class ModelRouter:
                 response.validation = self.validator.validate(response.content)
                 response.retry_count = attempts - 1
                 response.latency_ms = round((perf_counter() - started) * 1000)
-                last_response = response
                 if response.validation.is_valid:
                     return response
+
+                # Invalid model output is a real provider failure, not permission
+                # to impersonate the character with server-authored continuity text.
+                # Retry this provider when configured, then continue to a configured
+                # fallback provider. If all providers fail, surface a typed error.
+                last_error = ProviderInvalidResponseError()
                 if retry < self.max_retries:
                     continue
                 break
 
-        if last_response is not None or content_was_blocked:
-            content = get_continuity_fallback(request.character_id)
-            return ModelResponse(
-                provider="server-fallback",
-                model="server-owned-continuity",
-                content=content,
-                validation=self.validator.validate(content),
-                retry_count=max(attempts - 1, 0),
-                latency_ms=round((perf_counter() - started) * 1000),
-            )
-
-        assert last_error is not None
+        if last_error is None:
+            # Defensive guard: a configured route should always either return a
+            # validated response or leave a typed provider error behind.
+            raise ProviderInvalidResponseError()
         raise last_error
 
 
