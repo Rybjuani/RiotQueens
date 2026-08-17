@@ -9,7 +9,7 @@ import {
   type ChatMessage,
   type ConversationSummary,
 } from "@/lib/api";
-import { bardera } from "@/lib/queen";
+import { bardera } from "@/components/riotqueens/queen";
 
 const CHAT_MESSAGE_MAX_LENGTH = 4_000;
 
@@ -133,33 +133,41 @@ export function ChatPanel() {
   return (
     <section className="chat-section" id="chat">
       <div className="wrap">
-        <span className="label">CHAT · LA BARDERA</span>
+        <span className="label">CHAT · LA BARDERA · T1</span>
         <h2>
           HABLÁ CON
           <br />
           LA BARDERA
         </h2>
-        <p style={{ color: "var(--plata)", marginTop: 8 }}>
-          Te bardea, te quiere, se queda. 100% virtual, +18.
+        <p className="chat-sub">
+          Te bardea, te quiere, se queda. 100% virtual, +18. Hilo por pestaña,
+          sin cuenta requerida en el preview.
         </p>
 
         <div className="chat-layout">
           <aside className="chat-presence">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={bardera.portrait}
-              alt="La Bardera"
-              width={1600}
-              height={893}
-              loading="lazy"
-              decoding="async"
-            />
-            <div className="meta">
-              <span className="label">
-                <i className="live-dot" aria-hidden />
+            <div className="photo-wrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={bardera.portrait}
+                alt="La Bardera"
+                width={1600}
+                height={893}
+                loading="lazy"
+                decoding="async"
+              />
+              <span className="live-pill">
+                <i className="dot" aria-hidden />
                 ONLINE
               </span>
-              <p>{bardera.tagline}</p>
+            </div>
+            <div className="meta">
+              <span className="label">{bardera.tagline}</span>
+              <p>
+                Punk del oeste, 24 años. Timing, sinceridad, ingenio, bardeo
+                afectivo y aguante. No inventa recuerdos. Ante dolor real,
+                acompaña antes de bardear.
+              </p>
             </div>
           </aside>
 
@@ -167,13 +175,13 @@ export function ChatPanel() {
             <header>
               <div>
                 <b>{bardera.name}</b>
-                <span>
-                  {hydrating ? "ABRIENDO" : conversationReady ? "LISTA" : "SIN SEÑAL"}
+                <span className={hydrating ? "" : conversationReady ? "live" : "dead"}>
+                  {hydrating ? "ABRIENDO" : conversationReady ? "● LISTA" : "SIN SEÑAL"}
                 </span>
               </div>
               <button
                 type="button"
-                className="btn"
+                className="btn mono"
                 onClick={clear}
                 disabled={loading || hydrating || !conversationReady}
               >
@@ -220,7 +228,12 @@ export function ChatPanel() {
                 aria-label="Mensaje"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                onKeyDown={(event) => event.key === "Enter" && void send()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
                 placeholder="Escribile algo..."
                 maxLength={CHAT_MESSAGE_MAX_LENGTH}
                 disabled={loading || hydrating || !conversationReady}

@@ -4,7 +4,7 @@ import "./styles.css";
 export const metadata: Metadata = {
   title: "RiotQueens.ai — ANTI-PERFECT-GF / BETA",
   description:
-    "No te clava el visto. Te bardea, te quiere, se queda. Experiencia +18 con personajes virtuales y ficticios.",
+    "No te clava el visto. Te bardea, te quiere, se queda. Experiencia +18 con personajes virtuales y ficticios que interactúan mediante IA.",
 };
 
 export default function RootLayout({

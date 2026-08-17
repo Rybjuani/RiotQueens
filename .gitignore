@@ -28,6 +28,8 @@ derived/
 !apps/web/public/brand/riotqueens-logo.jpeg
 !apps/web/public/queens/**/*.jpg
 !.github/
+# GLM redesign deliverable: browser-verification screenshots
+!artifacts/ui/*.png
 
 # Private visual library and local working dumps; keep outside this public repo.
 fotos_studio/

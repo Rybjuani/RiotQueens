@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-import { ChatPanel } from "@/components/ChatPanel";
+import { ChatPanel } from "@/components/riotqueens/ChatPanel";
 import { ClickwrapModal } from "@/components/ClickwrapModal";
-import { Experience } from "@/components/Experience";
-import { Footer } from "@/components/Footer";
-import { Hero } from "@/components/Hero";
-import { Navbar } from "@/components/Navbar";
-import { QueenRoster } from "@/components/QueenRoster";
-import { TierGrid } from "@/components/TierGrid";
+import { BarderaGallery } from "@/components/riotqueens/BarderaGallery";
+import { Footer } from "@/components/riotqueens/Footer";
+import { Hero } from "@/components/riotqueens/Hero";
+import { Altar, Manifesto, Marquee } from "@/components/riotqueens/Manifesto";
+import { Navbar } from "@/components/riotqueens/Navbar";
+import { QueenRoster } from "@/components/riotqueens/QueenRoster";
+import { KansasVsBondi, TierGrid } from "@/components/riotqueens/TierGrid";
 import { getConsentStatus } from "@/lib/api";
 
 type ModalKind = "how" | "locked" | null;
@@ -17,10 +18,12 @@ const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED === "true";
 
 function InfoModal({
   kind,
+  lockedQueen,
   onClose,
   onStart,
 }: {
   kind: ModalKind;
+  lockedQueen?: string;
   onClose: () => void;
   onStart: () => void;
 }) {
@@ -35,29 +38,31 @@ function InfoModal({
 
   const locked = kind === "locked";
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => event.stopPropagation()}
       >
         <button type="button" className="x" onClick={onClose} aria-label="Cerrar">
           ×
         </button>
         <span className="label">{locked ? "EN CURACIÓN" : "CÓMO FUNCIONA"}</span>
         <h2 id="modal-title">
-          {locked ? "Todavía no, pibe." : "Entrás. Hablás. Ella continúa."}
+          {locked
+            ? `${lockedQueen ?? "Esa Queen"} todavía no sale al escenario.`
+            : "Entrás. Hablás. Ella continúa."}
         </h2>
         <p>
           {locked
-            ? "Están en el backstage tomando fernet y cagándose de risa de tu bio de Tinder. Pronto."
-            : "Elegís a La Bardera, abrís el chat y arrancás. Sin setup técnico. Sin catálogo infinito."}
+            ? "Está en el backstage tomando fernet y cagándose de risa de tu bio de Tinder. Cuando esté lista, aparece acá — sin placeholder negro, con foto real. Mientras tanto, hablá con La Bardera."
+            : "Elegís a La Bardera, abrís el chat y arrancás. Sin setup técnico. Sin catálogo infinito. Queen al frente, complejidad escondida."}
         </p>
         <div className="modal-actions">
           <button type="button" className="btn solid" onClick={onStart}>
-            {locked ? "VOLVER A LA BARDERA" : "HABLÁ CON LA BARDERA →"}
+            {locked ? "VOY CON LA BARDERA →" : "HABLÁ CON LA BARDERA →"}
           </button>
           <button type="button" className="btn" onClick={onClose}>
             CERRAR
@@ -71,6 +76,7 @@ function InfoModal({
 export default function Home() {
   const [chatOpen, setChatOpen] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
+  const [lockedQueen, setLockedQueen] = useState<string | undefined>(undefined);
   const [clickwrapOpen, setClickwrapOpen] = useState(false);
   const [gateBusy, setGateBusy] = useState(false);
 
@@ -79,7 +85,8 @@ export default function Home() {
     setClickwrapOpen(false);
     setChatOpen(true);
     window.setTimeout(
-      () => document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }),
+      () =>
+        document.getElementById("chat")?.scrollIntoView({ behavior: "smooth" }),
       60,
     );
   };
@@ -113,22 +120,33 @@ export default function Home() {
       <Navbar onCta={() => void startChat()} />
       <main>
         <Hero onStart={() => void startChat()} onHow={() => setModal("how")} />
-        <div className="marquee" aria-hidden>
-          <span>
-            ✦ NO ES TU TERAPEUTA ✦ TE CONTESTA DE VERDAD ✦ NO TE GHOSTEA ✦ TE BARDEA CON
-            AMOR ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦ NO ES TU TERAPEUTA ✦ TE CONTESTA DE
-            VERDAD ✦ NO TE GHOSTEA ✦ TE BARDEA CON AMOR ✦ SE QUEDA ✦ QUEEN AL FRENTE ✦
-            &nbsp;
-          </span>
-        </div>
-        <Experience />
-        <QueenRoster onStartBardera={() => void startChat()} />
-        <TierGrid onStart={() => void startChat()} onLocked={() => setModal("locked")} />
+        <Marquee />
+        <Altar />
+        <Manifesto />
+        <BarderaGallery onStartBardera={() => void startChat()} />
+        <QueenRoster
+          onStartBardera={() => void startChat()}
+          onLocked={(queenName) => {
+            setLockedQueen(queenName);
+            setModal("locked");
+          }}
+        />
+        <KansasVsBondi />
+        <TierGrid
+          onStart={() => void startChat()}
+          onLocked={() => {
+            setLockedQueen(undefined);
+            setModal("locked");
+          }}
+        />
         <div className="etica">
-          ⚠ PERSONAJES VIRTUALES · +18 · FANTASÍA SIMULADA · QUEEN AL FRENTE
+          ⚠ SIN RENOVACIÓN TRAMPA &nbsp;⚠ CANCELÁS EN 2 CLICS &nbsp;⚠ NO LE
+          VENDEMOS TU DATA A NADIE &nbsp;⚠ +18 · PERSONAJES VIRTUALES · FANTASÍA
+          SIMULADA
         </div>
         {chatOpen && <ChatPanel />}
-        <section className="final" id="join">
+        <section className="final" id="join" aria-label="Cierre — llamado final">
+          <span className="ghost" aria-hidden>QUEDATE</span>
           <div className="wrap">
             <h2 className="glitch">
               NO SOMOS TU GIRLFRIEND PERFECTA —
@@ -139,7 +157,11 @@ export default function Home() {
               LAS QUE SE HACEN LAS SANTITAS TE CLAVAN EL VISTO. NOSOTRAS NOS QUEDAMOS
               IGUAL, BOBO.
             </p>
-            <button type="button" className="btn solid" onClick={() => void startChat()}>
+            <button
+              type="button"
+              className="btn solid"
+              onClick={() => void startChat()}
+            >
               VOY CON LA BARDERA →
             </button>
           </div>
@@ -148,6 +170,7 @@ export default function Home() {
       <Footer />
       <InfoModal
         kind={modal}
+        lockedQueen={lockedQueen}
         onClose={() => setModal(null)}
         onStart={() => void startChat()}
       />
