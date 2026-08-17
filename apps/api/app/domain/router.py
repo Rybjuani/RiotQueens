@@ -195,11 +195,16 @@ def build_router() -> ModelRouter:
                 and fallback_api_key
                 and fallback_model
             ):
+                # Optional lab overrides; default to primary sampling if unset.
+                fallback_temperature = _env("RIOTQUEENS_FALLBACK_MODEL_TEMPERATURE").strip()
+                fallback_freq = _env("RIOTQUEENS_FALLBACK_MODEL_FREQUENCY_PENALTY").strip()
                 fallback_adapter = OpenAICompatibleProvider(
                     base_url=fallback_base_url,
                     api_key=fallback_api_key,
                     model=fallback_model,
                     timeout_seconds=timeout,
+                    temperature=float(fallback_temperature) if fallback_temperature else None,
+                    frequency_penalty=float(fallback_freq) if fallback_freq else None,
                     omit_frequency_penalty=_env_bool(
                         "RIOTQUEENS_FALLBACK_MODEL_OMIT_FREQUENCY_PENALTY"
                     ),
